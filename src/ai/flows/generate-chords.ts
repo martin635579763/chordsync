@@ -38,7 +38,7 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateChordsOutputSchema},
   prompt: `You are a musical expert and can generate chord progressions with lyrics for songs.
 
-  Generate the lyrics and chord progression for the song with the following Spotify URI: {{{songUri}}}.
+  Generate the Chinese lyrics and chord progression for the song with the following Spotify URI: {{{songUri}}}.
   Provide the lyrics and align the chords to each measure for each line of lyrics.
   Also provide the overall chord progression as a simple string.
   For example, a line might be:
