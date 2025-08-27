@@ -87,7 +87,9 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       
       {currentSong && (
         <div className="flex items-center gap-4 mb-6 p-4 rounded-lg bg-primary/10">
-            <Image src={currentSong.art} alt={currentSong.name} width={64} height={64} className="rounded-lg shadow-md" data-ai-hint="music album" />
+            <div className="relative w-16 h-16 rounded-lg shadow-md overflow-hidden shrink-0">
+              <Image src={currentSong.art} alt={currentSong.name} fill sizes="64px" className="object-cover" data-ai-hint="music album" />
+            </div>
             <div className="overflow-hidden">
                 <p className="text-lg font-bold font-headline truncate">{currentSong.name}</p>
                 <p className="text-muted-foreground truncate">{currentSong.artist}</p>
