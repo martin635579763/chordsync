@@ -6,7 +6,14 @@ let spotifyApi: SpotifyWebApi | null = null;
 
 async function getSpotifyApi() {
   if (spotifyApi && spotifyApi.getAccessToken()) {
-    return spotifyApi;
+    try {
+      // Ping the API to see if the token is still valid
+      await spotifyApi.getMe();
+      return spotifyApi;
+    } catch (error) {
+       // Invalidate client if token is expired
+      spotifyApi = null;
+    }
   }
 
   const credentials = {
@@ -15,7 +22,9 @@ async function getSpotifyApi() {
   };
 
   if (!credentials.clientId || !credentials.clientSecret) {
-    throw new Error('Spotify API credentials are not set in environment variables.');
+    console.error('Spotify API credentials are not set in environment variables.');
+    // No point in continuing if creds aren't set.
+    return null;
   }
 
   const newSpotifyApi = new SpotifyWebApi(credentials);
@@ -27,13 +36,17 @@ async function getSpotifyApi() {
     return spotifyApi;
   } catch (err) {
     console.error('Something went wrong when retrieving an access token', err);
-    throw new Error('Failed to authenticate with Spotify API.');
+    spotifyApi = null;
+    return null;
   }
 }
 
 export async function getTrackDetails(trackUri: string) {
   try {
     const api = await getSpotifyApi();
+    if (!api) {
+        throw new Error("Spotify client not available.");
+    }
     const trackId = trackUri.split(':').pop();
     if (!trackId) {
         return null;
@@ -43,7 +56,7 @@ export async function getTrackDetails(trackUri: string) {
       name: track.name,
       artists: track.artists.map((artist) => artist.name),
       album: track.album.name,
-      albumArt: track.album.images?.[0]?.url,
+      art: track.album.images?.[0]?.url,
     };
   } catch (error) {
     console.error('Error fetching track details from Spotify:', error);

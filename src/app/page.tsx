@@ -33,7 +33,7 @@ export default function Home() {
         title: "Error",
         description: result.error || "An unknown error occurred.",
       });
-      setCurrentSong(null);
+      // Don't clear current song if chord gen fails, so user can see what they selected
     }
     setIsLoading(false);
   };

@@ -14,7 +14,7 @@ import {z} from 'genkit';
 import { getTrackDetails } from '@/services/spotify';
 
 const GenerateChordsInputSchema = z.object({
-  songUri: z.string().describe('The Spotify URI of the song.'),
+  songUri: z.string().describe('The Spotify URI of the song, or a local file URI.'),
 });
 export type GenerateChordsInput = z.infer<typeof GenerateChordsInputSchema>;
 
@@ -61,16 +61,23 @@ const generateChordsFlow = ai.defineFlow(
     outputSchema: GenerateChordsOutputSchema,
   },
   async ({ songUri }) => {
-    const trackDetails = await getTrackDetails(songUri);
-    
-    if (!trackDetails) {
-      throw new Error('Could not retrieve song details from Spotify.');
+    let songName = 'Unknown Song';
+    let artistName = 'Unknown Artist';
+
+    if (songUri.startsWith('spotify:')) {
+      const trackDetails = await getTrackDetails(songUri);
+      if (trackDetails) {
+        songName = trackDetails.name;
+        artistName = trackDetails.artists.join(', ');
+      } else {
+        throw new Error('Could not retrieve song details from Spotify.');
+      }
+    } else if (songUri.startsWith('local:file:')) {
+      songName = songUri.replace('local:file:', '').replace(/\.[^/.]+$/, "");
+      artistName = 'Local File';
     }
 
-    const {output} = await prompt({
-      songName: trackDetails.name,
-      artistName: trackDetails.artists.join(', '),
-    });
+    const {output} = await prompt({ songName, artistName });
     return output!;
   }
 );
