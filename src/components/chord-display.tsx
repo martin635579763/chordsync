@@ -55,6 +55,36 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     )
   }
 
+  const renderJianpu = () => {
+    if (!chordData?.lines) return null;
+    return (
+        <div className="space-y-8 animate-in fade-in duration-500 font-code">
+            {chordData.lines.map((line, lineIndex) => {
+                const jianpuMeasures = line.jianpu?.split('|') || [];
+                return (
+                    <div key={lineIndex} className="space-y-1">
+                        <div className="grid grid-cols-4 gap-x-4">
+                            {line.measures.map((measure, measureIndex) => (
+                                <div key={measureIndex} className="text-primary font-bold text-sm">
+                                    {measure.chords || ' '}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-4 gap-x-4">
+                             {jianpuMeasures.map((jianpuMeasure, jianpuIndex) => (
+                                <div key={jianpuIndex} className="text-foreground text-lg tracking-wider">
+                                    {jianpuMeasure.trim()}
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-muted-foreground text-md col-span-4">{line.lyrics || ' '}</p>
+                    </div>
+                );
+            })}
+        </div>
+    );
+  };
+
   const renderSkeletons = () => (
     <div className="space-y-6">
        {[...Array(4)].map((_, i) => (
@@ -102,11 +132,15 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (
-          <Tabs defaultValue="lyrics" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs defaultValue="jianpu" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="jianpu">简谱 (Jianpu)</TabsTrigger>
               <TabsTrigger value="lyrics">Lyrics & Chords</TabsTrigger>
               <TabsTrigger value="chords">Simple Chords</TabsTrigger>
             </TabsList>
+            <TabsContent value="jianpu" className="mt-4">
+              {renderJianpu()}
+            </TabsContent>
             <TabsContent value="lyrics" className="mt-4">
               {renderLyricsAndChords()}
             </TabsContent>
