@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo, ChangeEvent, useRef, FormEvent, useEffect } from 'react';
+import { useState, useRef, FormEvent, useEffect, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,14 +13,14 @@ import { searchSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 
 
-const mockSongs = [
-  { uri: 'spotify:track:0V1xOhL6K2M2TO9n9G3iB2', name: '晴天', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273833099547676a4440623719e' },
-  { uri: 'spotify:track:2r12pGkI83a1iR2B6d4182', name: '七里香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273942c75472844539453457375' },
-  { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126' },
-  { uri: 'spotify:track:51g1tkl0Tgs2b1T41SY5A', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a' },
-  { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b' },
-  { uri: 'spotify:track:5dC2P1g2a53s2b1T41SY5A', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336' },
-  { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45' },
+const mockSongs: Song[] = [
+  { uri: 'spotify:track:0V1xOhL6K2M2TO9n9G3iB2', name: '晴天', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273833099547676a4440623719e', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:2r12pGkI83a1iR2B6d4182', name: '七里香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273942c75472844539453457375', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:51g1tkl0Tgs2b1T41SY5A', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:5dC2P1g2a53s2b1T41SY5A', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45', previewUrl: null, isLocal: false },
 ];
 
 type Song = {
@@ -27,11 +28,13 @@ type Song = {
   name: string;
   artist: string;
   art: string;
+  previewUrl: string | null;
+  isLocal: boolean;
 };
 
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Song) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>) => void;
   isLoading: boolean;
 }
 
@@ -42,7 +45,40 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => setIsPlaying(false);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !selectedSong) return;
+  
+    if (isPlaying) {
+      audio.play().catch(error => {
+        console.error("Playback failed", error);
+        setIsPlaying(false);
+        toast({
+          variant: "destructive",
+          title: "Playback Error",
+          description: "Could not play the selected song.",
+        });
+      });
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying, selectedSong, toast]);
+
 
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,7 +93,8 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
     if (result.success && result.data) {
       if (result.data.length > 0) {
-        setSearchResults(result.data);
+        const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }))
+        setSearchResults(songsWithLocalFlag);
       } else {
         setSearchResults([]);
         toast({ title: 'No results', description: 'No songs found for your search.' });
@@ -73,26 +110,52 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
+    if (song.isLocal === false && !song.previewUrl) {
+      toast({
+        variant: "destructive",
+        title: "Preview Unavailable",
+        description: "A 30-second preview is not available for this song on Spotify.",
+      });
+      return;
+    }
+    
     setSelectedSong(song);
-    onSongSelect(song);
+    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
     setIsPlaying(true);
+  
+    if (audioRef.current && song.previewUrl) {
+      if (audioRef.current.src !== song.previewUrl) {
+        audioRef.current.src = song.previewUrl;
+      }
+      audioRef.current.load();
+      audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
+    }
   };
   
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const fileSong = {
+      const fileUrl = URL.createObjectURL(file);
+      const fileSong: Song = {
         uri: `local:file:${file.name}`,
         name: file.name.replace(/\.[^/.]+$/, ""),
         artist: 'Local File',
         art: 'https://picsum.photos/100/100?random=99',
+        previewUrl: fileUrl,
+        isLocal: true,
       };
       handleSelect(fileSong);
     }
   };
+  
+  const handlePlayPause = () => {
+    if (!selectedSong) return;
+    setIsPlaying(!isPlaying);
+  }
 
   return (
     <div className="flex flex-col h-full">
+      <audio ref={audioRef} />
       <h2 className="text-2xl font-headline font-semibold mb-4 text-center lg:text-left">Music Source</h2>
       <div className="flex-1 flex flex-col min-h-0">
         <form onSubmit={handleSearch} className="relative mb-4 flex gap-2">
@@ -177,7 +240,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
             <Button variant="ghost" size="icon">
                 <SkipBack className="w-6 h-6" />
             </Button>
-            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={() => setIsPlaying(!isPlaying)}>
+            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong}>
                 {isPlaying ? <Pause className="w-8 h-8 text-accent-foreground" /> : <Play className="w-8 h-8 text-accent-foreground" />}
             </Button>
             <Button variant="ghost" size="icon">

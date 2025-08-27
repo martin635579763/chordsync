@@ -1,3 +1,4 @@
+
 'use server';
 
 import SpotifyWebApi from 'spotify-web-api-node';
@@ -58,6 +59,7 @@ export async function getTrackDetails(trackUri: string) {
       artists: track.artists.map((artist) => artist.name),
       album: track.album.name,
       art: track.album.images?.[0]?.url || 'https://picsum.photos/100',
+      previewUrl: track.preview_url,
     };
 
     console.log('Successfully fetched track details from Spotify:', trackDetails);
@@ -91,6 +93,7 @@ export async function searchTracks(query: string) {
       name: track.name,
       artist: track.artists.map((artist) => artist.name).join(', '),
       art: track.album.images?.[0]?.url || 'https://picsum.photos/100',
+      previewUrl: track.preview_url,
     }));
     
     console.log(`Found ${searchResults.length} tracks for query "${query}"`);
