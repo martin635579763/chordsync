@@ -55,29 +55,6 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     )
   }
 
-  const renderTablature = () => {
-    if (!chordData?.lines) return null;
-    return (
-        <div className="space-y-8 animate-in fade-in duration-500 font-code">
-            {chordData.lines.map((line, lineIndex) => (
-                <div key={lineIndex} className="space-y-1">
-                    <div className="grid grid-cols-4 gap-x-4">
-                        {line.measures.map((measure, measureIndex) => (
-                            <div key={measureIndex} className="text-primary font-bold text-sm">
-                                {measure.chords || ' '}
-                            </div>
-                        ))}
-                    </div>
-                    <pre className="text-foreground text-sm whitespace-pre-wrap leading-tight">
-                        {line.tablature}
-                    </pre>
-                    <p className="text-muted-foreground text-md col-span-4">{line.lyrics || ' '}</p>
-                </div>
-            ))}
-        </div>
-    );
-  };
-
   const renderSkeletons = () => (
     <div className="space-y-6">
        {[...Array(4)].map((_, i) => (
@@ -125,15 +102,11 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (
-          <Tabs defaultValue="tablature" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="tablature">六线谱 (Tablature)</TabsTrigger>
+          <Tabs defaultValue="lyrics" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="lyrics">Lyrics & Chords</TabsTrigger>
               <TabsTrigger value="chords">Simple Chords</TabsTrigger>
             </TabsList>
-            <TabsContent value="tablature" className="mt-4">
-              {renderTablature()}
-            </TabsContent>
             <TabsContent value="lyrics" className="mt-4">
               {renderLyricsAndChords()}
             </TabsContent>
