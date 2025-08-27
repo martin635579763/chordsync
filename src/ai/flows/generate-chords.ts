@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { getTrackDetails } from '@/services/spotify';
 
 const GenerateChordsInputSchema = z.object({
   songUri: z.string().describe('The Spotify URI of the song.'),
@@ -34,11 +35,14 @@ export async function generateChords(input: GenerateChordsInput): Promise<Genera
 
 const prompt = ai.definePrompt({
   name: 'generateChordsPrompt',
-  input: {schema: GenerateChordsInputSchema},
+  input: {schema: z.object({
+    songName: z.string(),
+    artistName: z.string(),
+  })},
   output: {schema: GenerateChordsOutputSchema},
   prompt: `You are a musical expert and can generate chord progressions with lyrics for songs.
 
-  Generate the Chinese lyrics and chord progression for the song with the following Spotify URI: {{{songUri}}}.
+  Generate the Chinese lyrics and chord progression for the song "{{songName}}" by "{{artistName}}".
   Provide the lyrics and align the chords to each measure for each line of lyrics.
   Also provide the overall chord progression as a simple string.
   For example, a line might be:
@@ -56,8 +60,17 @@ const generateChordsFlow = ai.defineFlow(
     inputSchema: GenerateChordsInputSchema,
     outputSchema: GenerateChordsOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async ({ songUri }) => {
+    const trackDetails = await getTrackDetails(songUri);
+    
+    if (!trackDetails) {
+      throw new Error('Could not retrieve song details from Spotify.');
+    }
+
+    const {output} = await prompt({
+      songName: trackDetails.name,
+      artistName: trackDetails.artists.join(', '),
+    });
     return output!;
   }
 );

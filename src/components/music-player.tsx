@@ -10,13 +10,13 @@ import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuf
 import Image from 'next/image';
 
 const mockSongs = [
-  { uri: 'spotify:track:jaychou1', name: '晴天', artist: '周杰伦', art: 'https://picsum.photos/100/100?random=1' },
-  { uri: 'spotify:track:jaychou2', name: '七里香', artist: '周杰伦', art: 'https://picsum.photos/100/100?random=2' },
-  { uri: 'spotify:track:jaychou3', name: '稻香', artist: '周杰伦', art: 'https://picsum.photos/100/100?random=3' },
-  { uri: 'spotify:track:jaychou4', name: '告白气球', artist: '周杰伦', art: 'https://picsum.photos/100/100?random=4' },
-  { uri: 'spotify:track:mayday1', name: '突然好想你', artist: '五月天', art: 'https://picsum.photos/100/100?random=5' },
-  { uri: 'spotify:track:mayday2', name: '倔强', artist: '五月天', art: 'https://picsum.photos/100/100?random=6' },
-  { uri: 'spotify:track:jjlin1', name: '可惜没如果', artist: '林俊杰', art: 'https://picsum.photos/100/100?random=7' },
+  { uri: 'spotify:track:0V1xOhL6K2M2TO9n9G3iB2', name: '晴天', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273833099547676a4440623719e' },
+  { uri: 'spotify:track:2r12pGkI83a1iR2B6d4182', name: '七里香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273942c75472844539453457375' },
+  { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126' },
+  { uri: 'spotify:track:51g1tkl0Tgs21d5kcf0f95', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a' },
+  { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b' },
+  { uri: 'spotify:track:5dC2P1g2a53s2b1T41SY5A', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336' },
+  { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45' },
 ];
 
 type Song = typeof mockSongs[0];
