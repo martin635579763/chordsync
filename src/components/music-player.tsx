@@ -52,35 +52,28 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     const audio = audioRef.current;
     if (!audio) return;
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
   }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !selectedSong?.previewUrl) return;
-  
-    if (isPlaying) {
-      if (audio.src !== selectedSong.previewUrl) {
-          audio.src = selectedSong.previewUrl;
-      }
-      audio.play().catch(error => {
-        console.error("Playback failed", error);
-        setIsPlaying(false);
-        toast({
-          variant: "destructive",
-          title: "Playback Error",
-          description: "Could not play the selected song.",
-        });
-      });
-    } else {
-      audio.pause();
+    if (audio && selectedSong?.previewUrl && audio.src !== selectedSong.previewUrl) {
+        audio.src = selectedSong.previewUrl;
+        audio.play().catch(e => console.error("Error playing audio on select:", e));
     }
-  }, [isPlaying, selectedSong, toast]);
+  }, [selectedSong]);
 
 
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
@@ -113,25 +106,15 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
-    if (!song.isLocal && !song.previewUrl) {
-      toast({
-        variant: "destructive",
-        title: "Preview Unavailable",
-        description: "A 30-second preview is not available for this song on Spotify.",
-      });
-      if (selectedSong?.uri === song.uri) {
-        setIsPlaying(false);
-      }
-      // We still select the song to generate chords, just can't play it
-    }
-
-    setSelectedSong(song);
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
-
-    if(song.previewUrl){
-        setIsPlaying(true);
-    } else {
-        setIsPlaying(false);
+    setSelectedSong(song);
+    
+    if (!song.previewUrl && !song.isLocal) {
+        toast({
+            variant: "destructive",
+            title: "Preview Unavailable",
+            description: "A 30-second preview is not available for this song on Spotify.",
+        });
     }
   };
   
@@ -147,15 +130,29 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         previewUrl: fileUrl,
         isLocal: true,
       };
-      // Add to the top of the search results
       setSearchResults(prev => [fileSong, ...prev.filter(s => !s.isLocal)]);
       handleSelect(fileSong);
     }
   };
   
   const handlePlayPause = () => {
-    if (!selectedSong || !selectedSong.previewUrl) return;
-    setIsPlaying(!isPlaying);
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    if (selectedSong && !selectedSong.previewUrl) {
+      toast({
+            variant: "destructive",
+            title: "Preview Unavailable",
+            description: "A 30-second preview is not available for this song on Spotify.",
+        });
+      return;
+    }
+
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(e => console.error("Error playing audio on click:", e));
+    }
   }
 
   return (
@@ -248,7 +245,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
             <Button variant="ghost" size="icon">
                 <SkipBack className="w-6 h-6" />
             </Button>
-            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong?.previewUrl}>
+            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong}>
                 {isPlaying ? <Pause className="w-8 h-8 text-accent-foreground" /> : <Play className="w-8 h-8 text-accent-foreground" />}
             </Button>
             <Button variant="ghost" size="icon">
@@ -261,4 +258,5 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       </div>
     </div>
   );
-}
+
+    
