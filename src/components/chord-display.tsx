@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
-import { Music, Settings } from 'lucide-react';
+import { Music } from 'lucide-react';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import FretboardDiagram from '@/components/fretboard-diagram';
+
 
 interface ChordDisplayProps {
   chordData: GenerateChordsOutput | null;
@@ -22,16 +22,16 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
   const renderSimpleChords = () => {
     if (!chordData?.chordProgression) return null;
     const parsedChords = chordData.chordProgression.split(/[\s-]+/).filter(c => c);
+    // Remove duplicate consecutive chords for a cleaner display
+    const uniqueChords = parsedChords.filter((chord, index, self) => chord && self.indexOf(chord) === index);
+    
     return (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
-            {parsedChords.map((chord, index) => (
-            <Card key={index} className="bg-card/80 shadow-md transform hover:scale-105 transition-transform duration-300">
-                <CardContent className="p-4 flex flex-col items-center justify-center aspect-square">
-                <p className="text-3xl lg:text-4xl font-bold font-headline text-primary">
-                    {chord}
-                </p>
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
+            {uniqueChords.map((chord, index) => (
+                <div key={index} className="flex flex-col items-center gap-2">
+                    <p className="text-xl font-bold font-headline text-primary">{chord}</p>
+                    <FretboardDiagram chord={chord} />
+                </div>
             ))}
         </div>
     );
