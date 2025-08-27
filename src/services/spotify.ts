@@ -52,12 +52,17 @@ export async function getTrackDetails(trackUri: string) {
         return null;
     }
     const { body: track } = await api.getTrack(trackId);
-    return {
+    
+    const trackDetails = {
       name: track.name,
       artists: track.artists.map((artist) => artist.name),
       album: track.album.name,
       art: track.album.images?.[0]?.url,
     };
+
+    console.log('Successfully fetched track details from Spotify:', trackDetails);
+    
+    return trackDetails;
   } catch (error) {
     console.error('Error fetching track details from Spotify:', error);
     // Invalidate the client if there's an auth error
