@@ -19,7 +19,7 @@ const mockSongs: Song[] = [
   { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126', previewUrl: null, isLocal: false },
   { uri: 'spotify:track:51g1tkl0Tgs2b1T41SY5A', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a', previewUrl: null, isLocal: false },
   { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:5dC2P1g2a53s2b1T41SY5A', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336', previewUrl: null, isLocal: false },
+  { uri: 'spotify:track:5dCvr5PLnEaKzS9yZQ2sS8', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336', previewUrl: null, isLocal: false },
   { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45', previewUrl: null, isLocal: false },
 ];
 
@@ -62,9 +62,12 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !selectedSong) return;
+    if (!audio || !selectedSong?.previewUrl) return;
   
     if (isPlaying) {
+      if (audio.src !== selectedSong.previewUrl) {
+          audio.src = selectedSong.previewUrl;
+      }
       audio.play().catch(error => {
         console.error("Playback failed", error);
         setIsPlaying(false);
@@ -110,25 +113,25 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
-    if (song.isLocal === false && !song.previewUrl) {
+    if (!song.isLocal && !song.previewUrl) {
       toast({
         variant: "destructive",
         title: "Preview Unavailable",
         description: "A 30-second preview is not available for this song on Spotify.",
       });
-      return;
+      if (selectedSong?.uri === song.uri) {
+        setIsPlaying(false);
+      }
+      // We still select the song to generate chords, just can't play it
     }
-    
+
     setSelectedSong(song);
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
-    setIsPlaying(true);
-  
-    if (audioRef.current && song.previewUrl) {
-      if (audioRef.current.src !== song.previewUrl) {
-        audioRef.current.src = song.previewUrl;
-      }
-      audioRef.current.load();
-      audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
+
+    if(song.previewUrl){
+        setIsPlaying(true);
+    } else {
+        setIsPlaying(false);
     }
   };
   
@@ -144,12 +147,14 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         previewUrl: fileUrl,
         isLocal: true,
       };
+      // Add to the top of the search results
+      setSearchResults(prev => [fileSong, ...prev.filter(s => !s.isLocal)]);
       handleSelect(fileSong);
     }
   };
   
   const handlePlayPause = () => {
-    if (!selectedSong) return;
+    if (!selectedSong || !selectedSong.previewUrl) return;
     setIsPlaying(!isPlaying);
   }
 
@@ -190,6 +195,9 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
                   <p className="font-semibold truncate">{song.name}</p>
                   <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
                 </div>
+                {song.uri === selectedSong?.uri && isLoading && (
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                )}
               </button>
             ))}
              {isSearching && (
@@ -240,7 +248,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
             <Button variant="ghost" size="icon">
                 <SkipBack className="w-6 h-6" />
             </Button>
-            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong}>
+            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong?.previewUrl}>
                 {isPlaying ? <Pause className="w-8 h-8 text-accent-foreground" /> : <Play className="w-8 h-8 text-accent-foreground" />}
             </Button>
             <Button variant="ghost" size="icon">

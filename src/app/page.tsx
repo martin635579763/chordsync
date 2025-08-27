@@ -22,9 +22,10 @@ export default function Home() {
     setCurrentSong({ name: song.name, artist: song.artist, art: song.art });
     
     // Simulate API delay for a better UX feel
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const result = await getChords({ songUri: song.uri });
+    setIsLoading(false);
 
     if (result.success && result.data) {
       setChordData(result.data);
@@ -36,7 +37,6 @@ export default function Home() {
       });
       // Don't clear current song if chord gen fails, so user can see what they selected
     }
-    setIsLoading(false);
   };
 
   return (
