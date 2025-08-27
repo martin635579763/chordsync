@@ -8,59 +8,65 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Music, Settings } from 'lucide-react';
+import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface ChordDisplayProps {
-  chords: string | null;
+  chordData: GenerateChordsOutput | null;
   isLoading: boolean;
   currentSong: { name: string; artist: string; art: string } | null;
 }
 
-const romanNumeralMap: { [key: string]: string } = {
-  'C': 'I', 'Cm': 'i', 'Cmaj7': 'Imaj7',
-  'C#': 'I#', 'C#m': 'i#', 'Db': 'IIb', 'Dbm': 'iib',
-  'D': 'II', 'Dm': 'ii', 'Dmaj7': 'IImaj7',
-  'D#': 'II#', 'D#m': 'ii#', 'Eb': 'IIIb', 'Ebm': 'iiib',
-  'E': 'III', 'Em': 'iii', 'Emaj7': 'IIImaj7',
-  'F': 'IV', 'Fm': 'iv', 'Fmaj7': 'IVmaj7',
-  'F#': 'IV#', 'F#m': 'iv#', 'Gb': 'Vb', 'Gbm': 'vb',
-  'G': 'V', 'Gm': 'v', 'Gmaj7': 'Vmaj7',
-  'G#': 'V#', 'G#m': 'v#', 'Ab': 'VIb', 'Abm': 'vib',
-  'A': 'VI', 'Am': 'vi', 'Amaj7': 'VImaj7',
-  'A#': 'VI#', 'A#m': 'vi#', 'Bb': 'VIIb', 'Bbm': 'viib',
-  'B': 'VII', 'Bm': 'vii', 'Bmaj7': 'VIImaj7',
-};
-
-const convertToRoman = (chord: string) => {
-    // This is a simplified converter. A real one would need key context.
-    return romanNumeralMap[chord] || chord;
-}
-
-export default function ChordDisplay({ chords, isLoading, currentSong }: ChordDisplayProps) {
-  const [notation, setNotation] = useState('standard');
+export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   
-  const parsedChords = chords?.split(/[\s-]+/).filter(c => c);
-
-  const renderChords = () => {
-    if (!parsedChords) return null;
-    return parsedChords.map((chord, index) => (
-      <Card key={index} className="bg-card/80 shadow-md transform hover:scale-105 transition-transform duration-300">
-        <CardContent className="p-4 flex flex-col items-center justify-center aspect-square">
-          <p className="text-3xl lg:text-4xl font-bold font-headline text-primary">
-            {notation === 'roman' ? convertToRoman(chord) : chord}
-          </p>
-        </CardContent>
-      </Card>
-    ));
+  const renderSimpleChords = () => {
+    if (!chordData?.chordProgression) return null;
+    const parsedChords = chordData.chordProgression.split(/[\s-]+/).filter(c => c);
+    return (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
+            {parsedChords.map((chord, index) => (
+            <Card key={index} className="bg-card/80 shadow-md transform hover:scale-105 transition-transform duration-300">
+                <CardContent className="p-4 flex flex-col items-center justify-center aspect-square">
+                <p className="text-3xl lg:text-4xl font-bold font-headline text-primary">
+                    {chord}
+                </p>
+                </CardContent>
+            </Card>
+            ))}
+        </div>
+    );
   };
+  
+  const renderLyricsAndChords = () => {
+    if (!chordData?.lines) return null;
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            {chordData.lines.map((line, lineIndex) => (
+                <div key={lineIndex} className="grid grid-cols-4 gap-x-4 gap-y-1">
+                    {line.measures.map((measure, measureIndex) => (
+                        <div key={measureIndex} className="text-primary font-bold font-code text-sm">
+                            {measure.chords}
+                        </div>
+                    ))}
+                    <p className="col-span-4 text-foreground text-lg">{line.lyrics || ' '}</p>
+                </div>
+            ))}
+        </div>
+    )
+  }
 
   const renderSkeletons = () => (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {[...Array(12)].map((_, i) => (
-         <Card key={i} className="bg-card/80 shadow-md">
-            <CardContent className="p-4 flex flex-col items-center justify-center aspect-square">
-                <Skeleton className="h-10 w-20 bg-muted/50" />
-            </CardContent>
-        </Card>
+    <div className="space-y-6">
+       {[...Array(4)].map((_, i) => (
+         <div key={i} className="space-y-2">
+            <div className="grid grid-cols-4 gap-4">
+                <Skeleton className="h-5 w-1/2 bg-muted/50" />
+                <Skeleton className="h-5 w-1/2 bg-muted/50" />
+                <Skeleton className="h-5 w-1/2 bg-muted/50" />
+                <Skeleton className="h-5 w-1/2 bg-muted/50" />
+            </div>
+            <Skeleton className="h-6 w-full bg-muted/50" />
+        </div>
       ))}
     </div>
   );
@@ -77,19 +83,6 @@ export default function ChordDisplay({ chords, isLoading, currentSong }: ChordDi
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-start mb-4">
         <h2 className="text-2xl font-headline font-semibold">Chord Progression</h2>
-        <div className="flex items-center gap-4">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-             <RadioGroup defaultValue="standard" value={notation} onValueChange={setNotation} className="flex gap-4">
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="standard" id="r1" />
-                    <Label htmlFor="r1">Standard</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="roman" id="r2" />
-                    <Label htmlFor="r2">Roman</Label>
-                </div>
-            </RadioGroup>
-        </div>
       </div>
       
       {currentSong && (
@@ -106,10 +99,19 @@ export default function ChordDisplay({ chords, isLoading, currentSong }: ChordDi
       <div className="flex-1 overflow-auto pr-2 -mr-2">
         {isLoading ? (
           renderSkeletons()
-        ) : chords ? (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
-            {renderChords()}
-          </div>
+        ) : chordData ? (
+          <Tabs defaultValue="lyrics" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="lyrics">Lyrics & Chords</TabsTrigger>
+              <TabsTrigger value="chords">Simple Chords</TabsTrigger>
+            </TabsList>
+            <TabsContent value="lyrics" className="mt-4">
+              {renderLyricsAndChords()}
+            </TabsContent>
+            <TabsContent value="chords" className="mt-4">
+               {renderSimpleChords()}
+            </TabsContent>
+          </Tabs>
         ) : (
           renderEmptyState()
         )}

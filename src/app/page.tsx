@@ -7,16 +7,17 @@ import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
 import { Guitar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 
 export default function Home() {
-  const [chords, setChords] = useState<string | null>(null);
+  const [chordData, setChordData] = useState<GenerateChordsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string } | null>(null);
   const { toast } = useToast();
 
   const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }) => {
     setIsLoading(true);
-    setChords(null);
+    setChordData(null);
     setCurrentSong({ name: song.name, artist: song.artist, art: song.art });
     
     // Simulate API delay for a better UX feel
@@ -25,7 +26,7 @@ export default function Home() {
     const result = await getChords({ songUri: song.uri });
 
     if (result.success && result.data) {
-      setChords(result.data.chordProgression);
+      setChordData(result.data);
     } else {
       toast({
         variant: "destructive",
@@ -54,7 +55,7 @@ export default function Home() {
         <Card className="shadow-lg bg-card/50">
           <CardContent className="p-4 md:p-6 h-full">
             <ChordDisplay 
-              chords={chords} 
+              chordData={chordData} 
               isLoading={isLoading} 
               currentSong={currentSong} 
             />
