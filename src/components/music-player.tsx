@@ -1,25 +1,34 @@
 'use client';
 
-import { useState, useMemo, ChangeEvent, useRef } from 'react';
+import { useState, useMemo, ChangeEvent, useRef, FormEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react';
+import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { searchSongs } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+
 
 const mockSongs = [
   { uri: 'spotify:track:0V1xOhL6K2M2TO9n9G3iB2', name: '晴天', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273833099547676a4440623719e' },
   { uri: 'spotify:track:2r12pGkI83a1iR2B6d4182', name: '七里香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273942c75472844539453457375' },
   { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126' },
-  { uri: 'spotify:track:51g1tkl0Tgs21d5kcf0f95', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a' },
+  { uri: 'spotify:track:51g1tkl0Tgs2b1T41SY5A', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a' },
   { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b' },
   { uri: 'spotify:track:5dC2P1g2a53s2b1T41SY5A', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336' },
   { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45' },
 ];
 
-type Song = typeof mockSongs[0];
+type Song = {
+  uri: string;
+  name: string;
+  artist: string;
+  art: string;
+};
+
 
 interface MusicPlayerProps {
   onSongSelect: (song: Song) => void;
@@ -28,17 +37,40 @@ interface MusicPlayerProps {
 
 export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Song[]>(mockSongs);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const filteredSongs = useMemo(() => {
-    return mockSongs.filter(
-      (song) =>
-        song.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+  const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!searchQuery) {
+        setSearchResults(mockSongs);
+        return;
+    };
+
+    setIsSearching(true);
+    const result = await searchSongs(searchQuery);
+    setIsSearching(false);
+
+    if (result.success && result.data) {
+      if (result.data.length > 0) {
+        setSearchResults(result.data);
+      } else {
+        setSearchResults([]);
+        toast({ title: 'No results', description: 'No songs found for your search.' });
+      }
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Search Failed",
+        description: result.error || "An unknown error occurred during search.",
+      });
+    }
+  };
+
 
   const handleSelect = (song: Song) => {
     setSelectedSong(song);
@@ -63,20 +95,25 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     <div className="flex flex-col h-full">
       <h2 className="text-2xl font-headline font-semibold mb-4 text-center lg:text-left">Music Source</h2>
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Search for a song or artist..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <form onSubmit={handleSearch} className="relative mb-4 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search for a song or artist..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={isSearching}>
+            {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
+          </Button>
+        </form>
 
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><SpotifyIcon className="w-5 h-5" /> Spotify Library</p>
           <div className="space-y-2">
-            {filteredSongs.map((song) => (
+            {searchResults.map((song) => (
               <button
                 key={song.uri}
                 onClick={() => handleSelect(song)}
@@ -84,7 +121,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
                 className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
               >
                 <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
-                  <Image src={song.art} alt={song.name} fill sizes="40px" className="object-cover" data-ai-hint="music album" />
+                   <Image src={song.art} alt={song.name} fill className="object-cover" data-ai-hint="music album" />
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="font-semibold truncate">{song.name}</p>
@@ -92,6 +129,16 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
                 </div>
               </button>
             ))}
+             {isSearching && (
+                <div className="flex justify-center items-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+            )}
+            {!isSearching && searchResults.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">
+                    <p>No songs to display. Try a search!</p>
+                </div>
+            )}
           </div>
         </ScrollArea>
         
@@ -111,7 +158,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         <div className="flex items-center gap-4 mb-2">
             {selectedSong ? (
                 <div className="relative w-14 h-14 rounded-lg shadow-md overflow-hidden shrink-0">
-                  <Image src={selectedSong.art} alt={selectedSong.name} fill sizes="56px" className="object-cover" data-ai-hint="music album" />
+                  <Image src={selectedSong.art} alt={selectedSong.name} fill className="object-cover" data-ai-hint="music album" />
                 </div>
             ) : (
                 <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shadow-md">

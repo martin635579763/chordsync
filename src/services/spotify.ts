@@ -57,7 +57,7 @@ export async function getTrackDetails(trackUri: string) {
       name: track.name,
       artists: track.artists.map((artist) => artist.name),
       album: track.album.name,
-      art: track.album.images?.[0]?.url,
+      art: track.album.images?.[0]?.url || 'https://picsum.photos/100',
     };
 
     console.log('Successfully fetched track details from Spotify:', trackDetails);
@@ -70,5 +70,38 @@ export async function getTrackDetails(trackUri: string) {
         spotifyApi = null;
     }
     return null;
+  }
+}
+
+export async function searchTracks(query: string) {
+  try {
+    const api = await getSpotifyApi();
+    if (!api) {
+      throw new Error("Spotify client not available.");
+    }
+
+    const { body } = await api.searchTracks(query, { limit: 10 });
+    
+    if (!body.tracks) {
+      return [];
+    }
+    
+    const searchResults = body.tracks.items.map((track) => ({
+      uri: track.uri,
+      name: track.name,
+      artist: track.artists.map((artist) => artist.name).join(', '),
+      art: track.album.images?.[0]?.url || 'https://picsum.photos/100',
+    }));
+    
+    console.log(`Found ${searchResults.length} tracks for query "${query}"`);
+
+    return searchResults;
+
+  } catch (error) {
+    console.error(`Error searching tracks for query "${query}":`, error);
+    if ((error as any).statusCode === 401) {
+        spotifyApi = null;
+    }
+    return [];
   }
 }
