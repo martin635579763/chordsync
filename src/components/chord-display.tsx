@@ -20,15 +20,12 @@ interface ChordDisplayProps {
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   
   const renderSimpleChords = () => {
-    if (!chordData?.chordProgression) return null;
-    const parsedChords = chordData.chordProgression.split(/[\s-]+/).filter(c => c);
-    // Remove duplicate consecutive chords for a cleaner display
-    const uniqueChords = parsedChords.filter((chord, index, self) => chord && self.indexOf(chord) === index);
+    if (!chordData?.uniqueChords) return null;
     
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
-            {uniqueChords.map((chord, index) => (
-                <div key={index} className="flex flex-col items-center gap-2">
+            {chordData.uniqueChords.map((chord, index) => (
+                <div key={`${chord}-${index}`} className="flex flex-col items-center gap-2">
                     <p className="text-xl font-bold font-headline text-primary">{chord}</p>
                     <FretboardDiagram chord={chord} />
                 </div>

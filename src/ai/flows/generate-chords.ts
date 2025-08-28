@@ -22,10 +22,10 @@ const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
     lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
-      chords: z.string().describe('The chords for this measure, separated by spaces.'),
+      chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
     })).describe('The measures for this line of lyrics.'),
   })).describe('The lyrics and chords for the song, line by line.'),
-  chordProgression: z.string().describe('The generated chord progression for the song.'),
+  uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });
 export type GenerateChordsOutput = z.infer<typeof GenerateChordsOutputSchema>;
 
@@ -46,15 +46,15 @@ const prompt = ai.definePrompt({
   
   For each line of lyrics, provide:
   1. The lyric text.
-  2. An array of measures, with the corresponding chords for each measure.
-  
-  Also provide the overall chord progression as a simple string (e.g., "C - G - Am - G").
+  2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G") without extra characters or spaces.
+
+  Also, provide an array of all unique chords found in the song.
   
   Example for one line:
   - lyrics: "I see trees of green"
   - measures: [{chords: "C"}, {chords: "G7"}]
 
-  Structure the final output as an object containing 'lines' and 'chordProgression'.`,
+  Structure the final output as an object containing 'lines' and 'uniqueChords'.`,
 });
 
 const generateChordsFlow = ai.defineFlow(
