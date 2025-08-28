@@ -3,12 +3,23 @@
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { searchTracks as searchSpotifyTracks } from '@/services/spotify';
-import { getCachedFretboard, setCachedFretboard } from '@/services/firebase';
+import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords } from '@/services/firebase';
 
 
 export async function getChords(input: GenerateChordsInput) {
   try {
+    // 1. Check cache first
+    const cachedData = await getCachedChords(input.songUri);
+    if (cachedData) {
+      return { success: true, data: cachedData };
+    }
+    
+    // 2. If not in cache, generate with AI
     const output = await generateChords(input);
+
+    // 3. Store in cache for future use
+    await setCachedChords(input.songUri, output);
+    
     return { success: true, data: output };
   } catch (error) {
     console.error('Error generating chords:', error);
