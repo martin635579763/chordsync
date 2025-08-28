@@ -93,7 +93,7 @@ const FretboardDiagram: React.FC<FretboardDiagramProps> = ({ chord }) => {
             return (
               <circle
                 key={`dot-${stringIndex}`}
-                cx={10 + ((numStrings - 1 - stringIndex) * 16)}
+                cx={10 + (stringIndex * 16)}
                 cy={10 + (adjustedFret * 20)}
                 r="6"
                 fill="hsl(var(--primary))"
@@ -105,7 +105,7 @@ const FretboardDiagram: React.FC<FretboardDiagramProps> = ({ chord }) => {
       })}
 
       {frets.map((fret, stringIndex) => {
-        const xPos = 10 + ((numStrings - 1 - stringIndex) * 16);
+        const xPos = 10 + (stringIndex * 16);
         if (fret === 0) {
           return (
             <circle
