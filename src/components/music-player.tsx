@@ -9,19 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
 import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { searchSongs } from '@/app/actions';
+import { searchSongs, getInitialSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-
-
-const mockSongs: Song[] = [
-  { uri: 'spotify:track:0V1xOhL6K2M2TO9n9G3iB2', name: '晴天', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273833099547676a4440623719e', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:2r12pGkI83a1iR2B6d4182', name: '七里香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b273942c75472844539453457375', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:59Ie2L5a25e22Sj3cWv4ci', name: '稻香', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b27344c215357476906a5b67a126', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:51g1tkl0Tgs2b1T41SY5A', name: '告白气球', artist: '周杰伦', art: 'https://i.scdn.co/image/ab67616d0000b2733a133e53656c174b8849b28a', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:4k3Hwj8a4i9e5dG3a2b270', name: '突然好想你', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b273a384e1371295e4e73c3b4e6b', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:5dCvr5PLnEaKzS9yZQ2sS8', name: '倔强', artist: '五月天', art: 'https://i.scdn.co/image/ab67616d0000b27336152140a7a51cd11a7b5336', previewUrl: null, isLocal: false },
-  { uri: 'spotify:track:5sCvr5PLnEaKzS9yZQ2sS8', name: '可惜没如果', artist: '林俊杰', art: 'https://i.scdn.co/image/ab67616d0000b273e016833d0615555428ac8e45', previewUrl: null, isLocal: false },
-];
 
 type Song = {
   uri: string;
@@ -40,13 +29,33 @@ interface MusicPlayerProps {
 
 export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Song[]>(mockSongs);
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchInitialSongs = async () => {
+      setIsFetchingInitial(true);
+      const result = await getInitialSongs();
+      if (result.success && result.data) {
+        const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }));
+        setSearchResults(songsWithLocalFlag);
+      } else {
+         toast({
+            variant: "destructive",
+            title: "Could not load songs",
+            description: result.error,
+          });
+      }
+      setIsFetchingInitial(false);
+    };
+    fetchInitialSongs();
+  }, [toast]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -79,7 +88,6 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!searchQuery) {
-        setSearchResults(mockSongs);
         return;
     };
 
@@ -155,6 +163,44 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     }
   }
 
+  const renderSongList = () => {
+    if (isFetchingInitial || isSearching) {
+      return (
+          <div className="flex justify-center items-center py-4">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+      );
+    }
+
+    if (searchResults.length === 0) {
+      return (
+          <div className="text-center py-4 text-muted-foreground">
+              <p>No songs to display. Try a search!</p>
+          </div>
+      );
+    }
+
+    return searchResults.map((song) => (
+      <button
+        key={song.uri}
+        onClick={() => handleSelect(song)}
+        disabled={isLoading && selectedSong?.uri !== song.uri}
+        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+      >
+        <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
+           <Image src={song.art} alt={song.name} fill className="object-cover" data-ai-hint="music album" />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <p className="font-semibold truncate">{song.name}</p>
+          <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+        </div>
+        {song.uri === selectedSong?.uri && isLoading && (
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        )}
+      </button>
+    ));
+  }
+
   return (
     <div className="flex flex-col h-full">
       <audio ref={audioRef} />
@@ -178,35 +224,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><SpotifyIcon className="w-5 h-5" /> Spotify Library</p>
           <div className="space-y-2">
-            {searchResults.map((song) => (
-              <button
-                key={song.uri}
-                onClick={() => handleSelect(song)}
-                disabled={isLoading && selectedSong?.uri !== song.uri}
-                className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
-              >
-                <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
-                   <Image src={song.art} alt={song.name} fill className="object-cover" data-ai-hint="music album" />
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="font-semibold truncate">{song.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-                </div>
-                {song.uri === selectedSong?.uri && isLoading && (
-                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                )}
-              </button>
-            ))}
-             {isSearching && (
-                <div className="flex justify-center items-center py-4">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-            )}
-            {!isSearching && searchResults.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                    <p>No songs to display. Try a search!</p>
-                </div>
-            )}
+            {renderSongList()}
           </div>
         </ScrollArea>
         

@@ -55,6 +55,7 @@ export async function getTrackDetails(trackUri: string) {
     const { body: track } = await api.getTrack(trackId);
     
     const trackDetails = {
+      uri: track.uri,
       name: track.name,
       artists: track.artists.map((artist) => artist.name),
       album: track.album.name,
@@ -62,7 +63,7 @@ export async function getTrackDetails(trackUri: string) {
       previewUrl: track.preview_url,
     };
 
-    console.log('Successfully fetched track details from Spotify:', trackDetails);
+    console.log('Successfully fetched track details from Spotify for URI:', trackUri);
     
     return trackDetails;
   } catch (error) {

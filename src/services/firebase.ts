@@ -85,6 +85,19 @@ export async function setCachedChords(songUri: string, data: GenerateChordsOutpu
   }
 }
 
+export async function getRecentChords(count: number): Promise<string[]> {
+    try {
+        const q = query(collection(db, chordCacheCollection), limit(count));
+        const querySnapshot = await getDocs(q);
+        const songUris = querySnapshot.docs.map(doc => doc.id);
+        console.log(`[Firestore] Fetched ${songUris.length} recent song URIs.`);
+        return songUris;
+    } catch (error) {
+        console.error(`[Firestore] Error fetching recent chords:`, error);
+        return [];
+    }
+}
+
 
 // Check if Firestore is connected by trying to read a document.
 export async function checkFirestoreConnection() {
