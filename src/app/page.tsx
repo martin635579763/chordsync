@@ -42,9 +42,9 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-6 md:p-8">
       <header className="w-full max-w-7xl mb-8 flex items-center justify-center sm:justify-start">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary flex items-center gap-3">
+        <h1 className="text-4xl md:text-5xl font-logo font-bold text-primary flex items-center gap-3">
           <Guitar className="h-10 w-10" />
-          ChordSync
+          耗子歌手的吉他屋
         </h1>
       </header>
       <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
