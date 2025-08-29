@@ -26,7 +26,7 @@ type Song = {
 };
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string, forceNew?: boolean) => void;
   onUpdate: (song: Song, arrangementStyle: string) => void;
   isLoading: boolean;
   initialSongs: Song[];
@@ -50,7 +50,7 @@ export default function MusicPlayer({
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [arrangementStyle, setArrangementStyle] = useState('Standard');
+  const [arrangementStyle, setArrangementStyle] = useState('Pop Arrangement');
   const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
   const lyricsFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
@@ -59,17 +59,26 @@ export default function MusicPlayer({
   const isStyleChange = useRef(false);
   const isManuallySelected = useRef(false);
 
-  useEffect(() => {
+  const handleArrangementChange = (style: string) => {
     isStyleChange.current = true;
     isManuallySelected.current = false;
-    fetchInitialSongs(arrangementStyle).then((songs) => {
+    setArrangementStyle(style);
+  };
+  
+  const handleSelect = useCallback((songs: Song[]) => {
       if (isStyleChange.current && !isManuallySelected.current && songs.length > 0) {
         handleDoubleClick(songs[0]);
         isStyleChange.current = false;
       }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchInitialSongs(arrangementStyle).then((songs) => {
+      handleSelect(songs);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arrangementStyle]);
+  }, [arrangementStyle, fetchInitialSongs]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -97,11 +106,6 @@ export default function MusicPlayer({
         audio.play().catch(e => console.error("Error playing audio on select:", e));
     }
   }, [selectedSongForPreview]);
-
-  const handleArrangementChange = (style: string) => {
-    setArrangementStyle(style);
-  };
-
 
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -261,12 +265,14 @@ export default function MusicPlayer({
     }
 
     return searchResults.map((song) => (
-      <button
+      <div
         key={song.uri}
+        role="button"
+        tabIndex={0}
         onClick={() => handleSingleClick(song)}
         onDoubleClick={() => handleDoubleClick(song)}
-        disabled={isLoading}
-        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${selectedSongForPreview?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDoubleClick(song); }}
+        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${selectedSongForPreview?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
            <Image src={song.art} alt={song.name} fill sizes="40px" className="object-cover" data-ai-hint="music album" />
@@ -297,7 +303,7 @@ export default function MusicPlayer({
         {isLoading && selectedSongForPreview?.uri === song.uri && !song.isGenerated && (
           <Loader2 className="w-5 h-5 animate-spin text-primary ml-auto" />
         )}
-      </button>
+      </div>
     ));
   }
 
@@ -329,7 +335,6 @@ export default function MusicPlayer({
               <SelectValue placeholder="Select arrangement style" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Standard">Standard</SelectItem>
               <SelectItem value="Pop Arrangement">Pop Arrangement</SelectItem>
             </SelectContent>
           </Select>
@@ -398,3 +403,5 @@ export default function MusicPlayer({
     </div>
   );
 }
+
+    
