@@ -118,17 +118,24 @@ const generateChordsFlow = ai.defineFlow(
 
     const {output} = await prompt({ songName, artistName, arrangementStyle: arrangementStyle || 'Standard' });
 
-    // Post-processing to ensure uniqueChords are clean
-    if (output && output.uniqueChords) {
+    // Post-processing to ensure uniqueChords are clean and derived from the measures
+    if (output && output.lines) {
         const chordSet = new Set<string>();
         output.lines.forEach(line => {
-            line.measures.forEach(measure => {
-                measure.chords.split(' ').forEach(chord => {
-                    if (chord) chordSet.add(chord.trim());
+            if (line.measures) {
+                line.measures.forEach(measure => {
+                    if(measure.chords) {
+                        measure.chords.split(' ').forEach(chord => {
+                            if (chord) chordSet.add(chord.trim());
+                        });
+                    }
                 });
-            });
+            }
         });
         output.uniqueChords = Array.from(chordSet);
+    } else if (output) {
+        // Fallback if lines are not generated, use the potentially unreliable uniqueChords from AI
+        output.uniqueChords = output.uniqueChords ? [...new Set(output.uniqueChords.map(c => c.trim()).filter(Boolean))] : [];
     }
     
     return output!;
