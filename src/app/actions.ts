@@ -8,7 +8,7 @@ import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChord
 
 export async function getChords(input: GenerateChordsInput) {
   try {
-    const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}`;
+    const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}${input.lyrics ? '-lyrics' : ''}`;
     // 1. Check cache first
     const cachedData = await getCachedChords(cacheKey);
     if (cachedData) {
@@ -19,7 +19,7 @@ export async function getChords(input: GenerateChordsInput) {
     const output = await generateChords(input);
 
     // 3. Store in cache for future use
-    await setCachedChords(cacheKey, output, input.songUri);
+    await setCachedChords(cacheKey, output, input.songUri, input.arrangementStyle || 'Standard');
     
     return { success: true, data: output };
   } catch (error) {
@@ -63,9 +63,9 @@ export async function getFretboard(chord: string) {
   }
 }
 
-export async function getInitialSongs() {
+export async function getInitialSongs(arrangementStyle: string) {
   try {
-    const songUris = await getRecentChords(20); // Fetch more to account for duplicates
+    const songUris = await getRecentChords(20, arrangementStyle); // Fetch more to account for duplicates
     const uniqueSongUris = [...new Set(songUris)].slice(0, 10); // Deduplicate and limit
     
     const trackDetailsPromises = uniqueSongUris.map(uri => getTrackDetails(uri));

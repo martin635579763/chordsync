@@ -2,7 +2,7 @@
 'use server';
 
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where } from 'firebase/firestore';
 import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 
@@ -30,7 +30,7 @@ const chordCacheCollection = 'chordCache';
 
 // Firestore document IDs cannot contain slashes or be empty.
 function sanitizeDocId(id: string): string {
-    return id.replace(/\//g, '-').replace(/:/g, '-');
+    return id.replace(/[\/:]/g, '-');
 }
 
 export async function getCachedFretboard(chord: string): Promise<GenerateFretboardOutput | null> {
@@ -86,26 +86,31 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
   }
 }
 
-export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string): Promise<void> {
+export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string, arrangementStyle: string): Promise<void> {
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
-    await setDoc(docRef, {...data, songUri, timestamp: new Date()});
+    await setDoc(docRef, {...data, songUri, arrangementStyle, timestamp: new Date()});
     console.log(`[Firestore] Successfully cached chords for song: ${cacheKey} (docId: ${docId})`);
   } catch (error) {
     console.error(`[Firestore] Error setting cached chords for ${cacheKey} (docId: ${docId}):`, error);
   }
 }
 
-export async function getRecentChords(count: number): Promise<string[]> {
+export async function getRecentChords(count: number, arrangementStyle: string): Promise<string[]> {
     try {
-        const q = query(collection(db, chordCacheCollection), orderBy("timestamp", "desc"), limit(count));
+        const q = query(
+            collection(db, chordCacheCollection), 
+            where("arrangementStyle", "==", arrangementStyle),
+            orderBy("timestamp", "desc"), 
+            limit(count)
+        );
         const querySnapshot = await getDocs(q);
         const songUris = querySnapshot.docs.map(doc => doc.data().songUri).filter(Boolean);
-        console.log(`[Firestore] Fetched ${songUris.length} recent song URIs.`);
+        console.log(`[Firestore] Fetched ${songUris.length} recent song URIs for style '${arrangementStyle}'.`);
         return songUris;
     } catch (error) {
-        console.error(`[Firestore] Error fetching recent chords:`, error);
+        console.error(`[Firestore] Error fetching recent chords for style '${arrangementStyle}':`, error);
         return [];
     }
 }

@@ -25,7 +25,7 @@ type Song = {
 
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>, arrangementStyle: string) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>, arrangementStyle: string, lyrics?: string) => void;
   isLoading: boolean;
 }
 
@@ -38,17 +38,22 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
+  const lyricsFileRef = useRef<HTMLInputElement>(null);
+  const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
-  const fetchInitialSongs = useCallback(async () => {
+  const fetchInitialSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
-    const result = await getInitialSongs();
+    const result = await getInitialSongs(style);
     if (result.success && result.data) {
       const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }));
       setInitialSongs(songsWithLocalFlag);
-      setSearchResults(songsWithLocalFlag);
+      // Only set search results if the user is not currently searching
+      if(searchQuery === '') {
+        setSearchResults(songsWithLocalFlag);
+      }
     } else {
        toast({
           variant: "destructive",
@@ -57,11 +62,11 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         });
     }
     setIsFetchingInitial(false);
-  }, [toast]);
+  }, [toast, searchQuery]);
 
   useEffect(() => {
-    fetchInitialSongs();
-  }, [fetchInitialSongs]);
+    fetchInitialSongs(arrangementStyle);
+  }, [fetchInitialSongs, arrangementStyle]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -93,8 +98,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const handleArrangementChange = (style: string) => {
     setArrangementStyle(style);
     if (selectedSong) {
-      // Re-trigger generation for the currently selected song with the new style
-      onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, style);
+      onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, style, uploadedLyrics);
     }
   };
 
@@ -137,6 +141,10 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
+    // Reset lyrics when a new song is selected
+    if (lyricsFileRef.current) lyricsFileRef.current.value = "";
+    setUploadedLyrics(undefined);
+    
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
     setSelectedSong(song);
     
@@ -149,7 +157,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     }
   };
   
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const fileUrl = URL.createObjectURL(file);
@@ -163,6 +171,22 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       };
       setSearchResults(prev => [fileSong, ...prev.filter(s => !s.isLocal)]);
       handleSelect(fileSong);
+    }
+  };
+
+  const handleLyricsFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setUploadedLyrics(text);
+        if (selectedSong) {
+            onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, arrangementStyle, text);
+        }
+        toast({ title: 'Lyrics uploaded', description: 'Generating chords for the uploaded lyrics.'})
+      };
+      reader.readAsText(file);
     }
   };
   
@@ -211,7 +235,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
-           <Image src={song.art} alt={song.name} fill className="object-cover" data-ai-hint="music album" />
+           <Image src={song.art} alt={song.name} fill sizes="40px" className="object-cover" data-ai-hint="music album" />
         </div>
         <div className="flex-1 overflow-hidden">
           <p className="font-semibold truncate">{song.name}</p>
@@ -268,12 +292,19 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         <Separator className="my-4" />
 
         <div>
-           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> Local File</p>
-          <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".mp3,.wav" />
-          <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
-            <Upload className="mr-2 h-4 w-4" />
-            Upload MP3 File
-          </Button>
+           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> Local Files</p>
+           <div className="grid grid-cols-2 gap-2">
+                <Input type="file" ref={audioFileRef} onChange={handleAudioFileChange} className="hidden" accept=".mp3,.wav" />
+                <Button variant="outline" className="w-full" onClick={() => audioFileRef.current?.click()} disabled={isLoading}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload MP3
+                </Button>
+                <Input type="file" ref={lyricsFileRef} onChange={handleLyricsFileChange} className="hidden" accept=".txt" />
+                <Button variant="outline" className="w-full" onClick={() => lyricsFileRef.current?.click()} disabled={!selectedSong || isLoading}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Lyrics (.txt)
+                </Button>
+           </div>
         </div>
       </div>
       
@@ -281,7 +312,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         <div className="flex items-center gap-4 mb-2">
             {selectedSong ? (
                 <div className="relative w-14 h-14 rounded-lg shadow-md overflow-hidden shrink-0">
-                  <Image src={selectedSong.art} alt={selectedSong.name} fill className="object-cover" data-ai-hint="music album" />
+                  <Image src={selectedSong.art} alt={selectedSong.name} fill sizes="56px" className="object-cover" data-ai-hint="music album" />
                 </div>
             ) : (
                 <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shadow-md">
@@ -313,6 +344,4 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       </div>
     </div>
   );
-
-    
-    
+}
