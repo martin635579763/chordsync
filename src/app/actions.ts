@@ -8,8 +8,9 @@ import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChord
 
 export async function getChords(input: GenerateChordsInput) {
   try {
+    const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}`;
     // 1. Check cache first
-    const cachedData = await getCachedChords(input.songUri);
+    const cachedData = await getCachedChords(cacheKey);
     if (cachedData) {
       return { success: true, data: cachedData };
     }
@@ -18,7 +19,7 @@ export async function getChords(input: GenerateChordsInput) {
     const output = await generateChords(input);
 
     // 3. Store in cache for future use
-    await setCachedChords(input.songUri, output);
+    await setCachedChords(cacheKey, output);
     
     return { success: true, data: output };
   } catch (error) {

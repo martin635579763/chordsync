@@ -15,6 +15,7 @@ import { getTrackDetails } from '@/services/spotify';
 
 const GenerateChordsInputSchema = z.object({
   songUri: z.string().describe('The Spotify URI of the song, or a local file URI.'),
+  arrangementStyle: z.string().optional().describe('The desired arrangement style for the chords.'),
 });
 export type GenerateChordsInput = z.infer<typeof GenerateChordsInputSchema>;
 
@@ -38,12 +39,17 @@ const prompt = ai.definePrompt({
   input: {schema: z.object({
     songName: z.string(),
     artistName: z.string(),
+    arrangementStyle: z.string().optional(),
   })},
   output: {schema: GenerateChordsOutputSchema},
   prompt: `You are a musical expert and can generate chord progressions and lyrics for songs.
 
-  Generate the Chinese lyrics and chord progression for the song "{{songName}}" by "{{artistName}}".
+  Generate the Chinese lyrics and a chord progression for the song "{{songName}}" by "{{artistName}}".
   
+  Please adhere to the following arrangement style: {{arrangementStyle}}.
+  - If the style is 'Standard', provide the most common and straightforward chord progression.
+  - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony.
+
   For each line of lyrics, provide:
   1. The lyric text.
   2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G") without extra characters or spaces.
@@ -63,7 +69,7 @@ const generateChordsFlow = ai.defineFlow(
     inputSchema: GenerateChordsInputSchema,
     outputSchema: GenerateChordsOutputSchema,
   },
-  async ({ songUri }) => {
+  async ({ songUri, arrangementStyle }) => {
     let songName = 'Unknown Song';
     let artistName = 'Unknown Artist';
 
@@ -80,7 +86,7 @@ const generateChordsFlow = ai.defineFlow(
       artistName = 'Local File';
     }
 
-    const {output} = await prompt({ songName, artistName });
+    const {output} = await prompt({ songName, artistName, arrangementStyle: arrangementStyle || 'Standard' });
     return output!;
   }
 );

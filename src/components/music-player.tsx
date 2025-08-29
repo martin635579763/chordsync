@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2 } from 'lucide-react';
+import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2 } from 'lucide-react';
 import Image from 'next/image';
 import { searchSongs, getInitialSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
 
 type Song = {
   uri: string;
@@ -23,7 +25,7 @@ type Song = {
 
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>, arrangementStyle: string) => void;
   isLoading: boolean;
 }
 
@@ -34,6 +36,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
@@ -114,7 +117,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
-    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
+    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
     setSelectedSong(song);
     
     if (!song.previewUrl && !song.isLocal) {
@@ -220,6 +223,19 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
             {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
           </Button>
         </form>
+
+        <div className="mb-4 space-y-2">
+          <Label htmlFor="arrangement-style" className="flex items-center gap-2 text-muted-foreground"><Wand2 className="w-4 h-4 text-accent"/> Arrangement Style</Label>
+          <Select value={arrangementStyle} onValueChange={setArrangementStyle}>
+            <SelectTrigger id="arrangement-style" className="w-full">
+              <SelectValue placeholder="Select arrangement style" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Standard">Standard</SelectItem>
+              <SelectItem value="Pop Arrangement">Pop Arrangement</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><SpotifyIcon className="w-5 h-5" /> Spotify Library</p>
