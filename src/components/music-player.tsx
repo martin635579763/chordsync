@@ -20,12 +20,11 @@ type Song = {
   artist: string;
   art: string;
   previewUrl: string | null;
-  isLocal: boolean;
 };
 
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isLocal'>, arrangementStyle: string, lyrics?: string) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string) => void;
   isLoading: boolean;
 }
 
@@ -43,14 +42,14 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+  const isStyleChange = useRef(false);
 
   const fetchInitialSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
     const result = await getInitialSongs(style);
     if (result.success && result.data) {
-      const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }));
+      const songsWithLocalFlag = result.data.map(song => ({ ...song }));
       setInitialSongs(songsWithLocalFlag);
-      // Only set search results if the user is not currently searching
       if(searchQuery === '') {
         setSearchResults(songsWithLocalFlag);
       }
@@ -65,8 +64,16 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   }, [toast, searchQuery]);
 
   useEffect(() => {
+    isStyleChange.current = true;
     fetchInitialSongs(arrangementStyle);
   }, [fetchInitialSongs, arrangementStyle]);
+  
+  useEffect(() => {
+    if (isStyleChange.current && searchResults.length > 0) {
+      handleSelect(searchResults[0]);
+      isStyleChange.current = false;
+    }
+  }, [searchResults]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -97,9 +104,6 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
   const handleArrangementChange = (style: string) => {
     setArrangementStyle(style);
-    if (selectedSong) {
-      onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, style, uploadedLyrics);
-    }
   };
 
 
@@ -116,7 +120,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
     if (result.success && result.data) {
       if (result.data.length > 0) {
-        const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }))
+        const songsWithLocalFlag = result.data.map(song => ({ ...song}))
         setSearchResults(songsWithLocalFlag);
       } else {
         setSearchResults([]);
@@ -141,14 +145,13 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
 
   const handleSelect = (song: Song) => {
-    // Reset lyrics when a new song is selected
     if (lyricsFileRef.current) lyricsFileRef.current.value = "";
     setUploadedLyrics(undefined);
     
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
     setSelectedSong(song);
     
-    if (!song.previewUrl && !song.isLocal) {
+    if (!song.previewUrl) {
         toast({
             variant: "destructive",
             title: "Preview Unavailable",
@@ -167,9 +170,8 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         artist: 'Local File',
         art: 'https://picsum.photos/100/100?random=99',
         previewUrl: fileUrl,
-        isLocal: true,
       };
-      setSearchResults(prev => [fileSong, ...prev.filter(s => !s.isLocal)]);
+      setSearchResults(prev => [fileSong, ...prev.filter(s => !s.uri.startsWith('local:'))]);
       handleSelect(fileSong);
     }
   };

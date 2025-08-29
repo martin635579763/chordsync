@@ -17,7 +17,7 @@ export default function Home() {
   const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string } | null>(null);
   const { toast } = useToast();
 
-  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string) => {
+  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string, lyrics?: string) => {
     setIsLoading(true);
     setChordData(null);
     setCurrentSong({ name: song.name, artist: song.artist, art: song.art });
@@ -25,7 +25,7 @@ export default function Home() {
     // Simulate API delay for a better UX feel
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const result = await getChords({ songUri: song.uri, arrangementStyle });
+    const result = await getChords({ songUri: song.uri, arrangementStyle, lyrics });
     setIsLoading(false);
 
     if (result.success && result.data) {
