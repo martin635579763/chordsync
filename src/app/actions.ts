@@ -4,19 +4,22 @@
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
-import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords } from '@/services/firebase';
+import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists } from '@/services/firebase';
 
 
-export async function getChords(input: GenerateChordsInput) {
+export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
   try {
     const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}${input.lyrics ? '-lyrics' : ''}`;
-    // 1. Check cache first
-    const cachedData = await getCachedChords(cacheKey);
-    if (cachedData) {
-      return { success: true, data: cachedData };
+    
+    // 1. Check cache first, unless forcing a new generation
+    if (!forceNew) {
+      const cachedData = await getCachedChords(cacheKey);
+      if (cachedData) {
+        return { success: true, data: cachedData };
+      }
     }
     
-    // 2. If not in cache, generate with AI
+    // 2. If not in cache or forceNew is true, generate with AI
     const output = await generateChords(input);
 
     // 3. Store in cache for future use
@@ -31,13 +34,25 @@ export async function getChords(input: GenerateChordsInput) {
   }
 }
 
-export async function searchSongs(query: string) {
+export async function searchSongs(query: string, arrangementStyle: string) {
     if (!query) {
         return { success: true, data: [] };
     }
     try {
-        const output = await searchSpotifyTracks(query);
-        return { success: true, data: output };
+        const spotifyTracks = await searchSpotifyTracks(query);
+        
+        const resultsWithCacheStatus = await Promise.all(
+            spotifyTracks.map(async (track) => {
+                const cacheKey = `${track.uri}-${arrangementStyle}`;
+                const isGenerated = await checkChordCacheExists(cacheKey);
+                return {
+                    ...track,
+                    isGenerated,
+                };
+            })
+        );
+
+        return { success: true, data: resultsWithCacheStatus };
     } catch (error) {
         console.error('Error searching songs:', error);
         return { success: false, error: 'Failed to search for songs. Please try again.'};
@@ -83,7 +98,6 @@ export async function getInitialSongs(arrangementStyle: string) {
     );
     
     const validTracks = tracks.filter(Boolean);
-    const validUris = validTracks.map(track => track!.uri);
 
     const searchResults = validTracks.map((track) => ({
         uri: track!.uri,
@@ -91,11 +105,10 @@ export async function getInitialSongs(arrangementStyle: string) {
         artist: track!.artists.join(', '),
         art: track!.art,
         previewUrl: track!.previewUrl,
+        isGenerated: true,
     }));
     
-    const finalResults = searchResults.filter(sr => validUris.includes(sr.uri));
-
-    return { success: true, data: finalResults };
+    return { success: true, data: searchResults };
 
   } catch (error) {
     console.error('Error fetching initial songs:', error);

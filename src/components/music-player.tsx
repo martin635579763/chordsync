@@ -7,12 +7,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2 } from 'lucide-react';
+import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { searchSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Song = {
   uri: string;
@@ -20,10 +22,12 @@ type Song = {
   artist: string;
   art: string;
   previewUrl: string | null;
+  isGenerated?: boolean;
 };
 
 interface MusicPlayerProps {
   onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string) => void;
+  onUpdate: (song: Song, arrangementStyle: string) => void;
   isLoading: boolean;
   initialSongs: Song[];
   searchResults: Song[];
@@ -34,6 +38,7 @@ interface MusicPlayerProps {
 
 export default function MusicPlayer({ 
   onSongSelect, 
+  onUpdate,
   isLoading, 
   initialSongs,
   searchResults,
@@ -52,17 +57,19 @@ export default function MusicPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const isStyleChange = useRef(false);
-  const generationTriggerSong = useRef<Song | null>(null);
+  const isManuallySelected = useRef(false);
 
   useEffect(() => {
     isStyleChange.current = true;
+    isManuallySelected.current = false;
     fetchInitialSongs(arrangementStyle).then((songs) => {
-      if (isStyleChange.current && songs.length > 0) {
+      if (isStyleChange.current && !isManuallySelected.current && songs.length > 0) {
         handleDoubleClick(songs[0]);
         isStyleChange.current = false;
       }
     });
-  }, [fetchInitialSongs, arrangementStyle]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrangementStyle]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -104,7 +111,7 @@ export default function MusicPlayer({
     };
 
     setIsSearching(true);
-    const result = await searchSongs(searchQuery);
+    const result = await searchSongs(searchQuery, arrangementStyle);
     setIsSearching(false);
 
     if (result.success && result.data) {
@@ -139,15 +146,19 @@ export default function MusicPlayer({
 
 
   const handleSingleClick = (song: Song) => {
+    isManuallySelected.current = true;
     setSelectedSongForPreview(song);
-    generationTriggerSong.current = song;
 
     if (song.previewUrl) {
       if (audioRef.current) {
-        audioRef.current.src = song.previewUrl;
-        audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
+        if (audioRef.current.src === song.previewUrl && isPlaying) {
+          audioRef.current.pause();
+        } else {
+          audioRef.current.src = song.previewUrl;
+          audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
+        }
       }
-    } else {
+    } else if (song.uri.startsWith('spotify:')) {
         toast({
             variant: "destructive",
             title: "Preview Unavailable",
@@ -160,8 +171,13 @@ export default function MusicPlayer({
     if (lyricsFileRef.current) lyricsFileRef.current.value = "";
     setUploadedLyrics(undefined);
     
-    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
+    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle, uploadedLyrics);
     setSelectedSongForPreview(song);
+  };
+  
+  const handleUpdateButtonClick = (e: React.MouseEvent, song: Song) => {
+    e.stopPropagation(); // Prevent single/double click on the row
+    onUpdate(song, arrangementStyle);
   };
 
   const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -182,27 +198,27 @@ export default function MusicPlayer({
 
   const handleLyricsFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && generationTriggerSong.current) {
+    const songForLyrics = selectedSongForPreview;
+
+    if (file && songForLyrics) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setUploadedLyrics(text);
-        if (generationTriggerSong.current) {
-            onSongSelect({ uri: generationTriggerSong.current.uri, name: generationTriggerSong.current.name, artist: generationTriggerSong.current.artist, art: generationTriggerSong.current.art }, arrangementStyle, text);
-        }
+        onSongSelect({ uri: songForLyrics.uri, name: songForLyrics.name, artist: songForLyrics.artist, art: songForLyrics.art }, arrangementStyle, text);
         toast({ title: 'Lyrics uploaded', description: 'Generating chords for the uploaded lyrics.'})
       };
       reader.readAsText(file);
-    } else if (!generationTriggerSong.current) {
+    } else if (!songForLyrics) {
         toast({ variant: 'destructive', title: 'No song selected', description: 'Please select a song before uploading lyrics.'});
     }
   };
   
   const handlePlayPause = () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !selectedSongForPreview) return;
     
-    if (selectedSongForPreview && !selectedSongForPreview.previewUrl) {
+    if (!selectedSongForPreview.previewUrl && selectedSongForPreview.uri.startsWith('spotify:')) {
       toast({
             variant: "destructive",
             title: "Preview Unavailable",
@@ -239,7 +255,7 @@ export default function MusicPlayer({
     if (searchResults.length === 0) {
       return (
           <div className="text-center py-4 text-muted-foreground">
-              <p>No songs in this library. Try a search!</p>
+              <p>No generated songs for this style. Try a search!</p>
           </div>
       );
     }
@@ -259,8 +275,27 @@ export default function MusicPlayer({
           <p className="font-semibold truncate">{song.name}</p>
           <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
         </div>
-        {song.uri === selectedSongForPreview?.uri && isLoading && (
-          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        
+        {song.isGenerated && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Badge variant="secondary" className="bg-green-700/20 text-green-400 border-none">已生成</Badge>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                    <RefreshCw className={`w-4 h-4 ${isLoading && selectedSongForPreview?.uri === song.uri ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Regenerate Chords</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+        
+        {isLoading && selectedSongForPreview?.uri === song.uri && !song.isGenerated && (
+          <Loader2 className="w-5 h-5 animate-spin text-primary ml-auto" />
         )}
       </button>
     ));

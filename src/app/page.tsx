@@ -17,6 +17,7 @@ type Song = {
   artist: string;
   art: string;
   previewUrl: string | null;
+  isGenerated?: boolean;
 };
 
 export default function Home() {
@@ -49,8 +50,8 @@ export default function Home() {
   }, [toast]);
 
 
-  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string, lyrics?: string) => {
-    const isNewSongRequest = !currentSong || song.uri !== currentSong.uri || !chordData;
+  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string, lyrics?: string, forceNew: boolean = false) => {
+    const isNewSongRequest = !currentSong || song.uri !== currentSong.uri || !chordData || forceNew;
     
     setIsLoading(true);
     if (isNewSongRequest) {
@@ -60,13 +61,12 @@ export default function Home() {
     
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const result = await getChords({ songUri: song.uri, arrangementStyle, lyrics });
+    const result = await getChords({ songUri: song.uri, arrangementStyle, lyrics }, forceNew);
     setIsLoading(false);
 
     if (result.success && result.data) {
       setChordData(result.data);
-      // If we just generated chords for a new song (not from local file), refresh the initial songs list
-      if (!song.uri.startsWith('local:') && !initialSongs.some(s => s.uri === song.uri)) {
+      if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
          fetchSongs(arrangementStyle);
       }
     } else {
@@ -77,6 +77,11 @@ export default function Home() {
       });
     }
   };
+
+  const handleUpdate = (song: Song, arrangementStyle: string) => {
+    handleSongSelect(song, arrangementStyle, undefined, true);
+  };
+
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-6 md:p-8">
@@ -91,6 +96,7 @@ export default function Home() {
           <CardContent className="p-4 md:p-6 h-full">
             <MusicPlayer
               onSongSelect={handleSongSelect}
+              onUpdate={handleUpdate}
               isLoading={isLoading}
               initialSongs={initialSongs}
               searchResults={searchResults}

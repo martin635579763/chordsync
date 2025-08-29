@@ -86,6 +86,19 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
   }
 }
 
+export async function checkChordCacheExists(cacheKey: string): Promise<boolean> {
+  const docId = sanitizeDocId(cacheKey);
+  try {
+    const docRef = doc(db, chordCacheCollection, docId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error(`[Firestore] Error checking cache for ${cacheKey} (docId: ${docId}):`, error);
+    return false;
+  }
+}
+
+
 export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string, arrangementStyle: string): Promise<void> {
   const docId = sanitizeDocId(cacheKey);
   try {
