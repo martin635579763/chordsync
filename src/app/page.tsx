@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Guitar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import SimpleChordsDisplay from '@/components/simple-chords-display';
 
 export default function Home() {
   const [chordData, setChordData] = useState<GenerateChordsOutput | null>(null);
@@ -47,21 +48,31 @@ export default function Home() {
           耗子歌手的吉他屋
         </h1>
       </header>
-      <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
-        <Card className="shadow-lg bg-card/50">
+      <div className="w-full max-w-7xl grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1">
+        <Card className="shadow-lg bg-card/50 xl:col-span-1">
           <CardContent className="p-4 md:p-6 h-full">
             <MusicPlayer onSongSelect={handleSongSelect} isLoading={isLoading} />
           </CardContent>
         </Card>
-        <Card className="shadow-lg bg-card/50">
-          <CardContent className="p-4 md:p-6 h-full">
-            <ChordDisplay 
-              chordData={chordData} 
-              isLoading={isLoading} 
-              currentSong={currentSong} 
-            />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:col-span-2 gap-8">
+          <Card className="shadow-lg bg-card/50 lg:col-span-2">
+            <CardContent className="p-4 md:p-6 h-full">
+              <ChordDisplay 
+                chordData={chordData} 
+                isLoading={isLoading} 
+                currentSong={currentSong} 
+              />
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg bg-card/50 lg:col-span-1">
+            <CardContent className="p-4 md:p-6 h-full">
+              <SimpleChordsDisplay
+                chordData={chordData}
+                isLoading={isLoading}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
        <footer className="mt-8 text-center text-muted-foreground text-sm">
         <p>Built for dual-screen, works on your desktop. Powered by AI.</p>
