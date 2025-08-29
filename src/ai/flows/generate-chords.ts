@@ -47,7 +47,6 @@ const prompt = ai.definePrompt({
   Generate the Chinese lyrics and a chord progression for the song "{{songName}}" by "{{artistName}}".
   
   Please adhere to the following arrangement style: {{arrangementStyle}}.
-  - If the style is 'Standard', provide a common and straightforward chord progression.
   - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony.
 
   For each line of lyrics, provide:
@@ -95,7 +94,7 @@ const generateChordsFlow = ai.defineFlow(
       artistName = 'Local File';
     }
 
-    const {output} = await prompt({ songName, artistName, arrangementStyle: arrangementStyle || 'Standard' });
+    const {output} = await prompt({ songName, artistName, arrangementStyle: arrangementStyle || 'Pop Arrangement' });
 
     // Post-processing to ensure uniqueChords are clean and derived from the measures
     if (output && output.lines) {
