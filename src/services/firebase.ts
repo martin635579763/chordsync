@@ -97,20 +97,23 @@ export async function setCachedChords(cacheKey: string, data: GenerateChordsOutp
   }
 }
 
-export async function getRecentChords(count: number, arrangementStyle: string): Promise<string[]> {
+export async function getRecentChords(count: number): Promise<{ songUri: string, arrangementStyle: string }[]> {
     try {
         const q = query(
             collection(db, chordCacheCollection), 
-            where("arrangementStyle", "==", arrangementStyle),
             orderBy("timestamp", "desc"), 
             limit(count)
         );
         const querySnapshot = await getDocs(q);
-        const songUris = querySnapshot.docs.map(doc => doc.data().songUri).filter(Boolean);
-        console.log(`[Firestore] Fetched ${songUris.length} recent song URIs for style '${arrangementStyle}'.`);
-        return songUris;
+        const songs = querySnapshot.docs
+            .map(doc => doc.data())
+            .filter(data => data.songUri && data.arrangementStyle)
+            .map(data => ({ songUri: data.songUri, arrangementStyle: data.arrangementStyle }));
+
+        console.log(`[Firestore] Fetched ${songs.length} recent songs.`);
+        return songs;
     } catch (error) {
-        console.error(`[Firestore] Error fetching recent chords for style '${arrangementStyle}':`, error);
+        console.error(`[Firestore] Error fetching recent chords:`, error);
         return [];
     }
 }

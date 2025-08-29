@@ -19,7 +19,9 @@ export async function getChords(input: GenerateChordsInput) {
     const output = await generateChords(input);
 
     // 3. Store in cache for future use
-    await setCachedChords(cacheKey, output, input.songUri, input.arrangementStyle || 'Standard');
+    if (input.songUri.startsWith('spotify:')) { // Only cache spotify songs
+        await setCachedChords(cacheKey, output, input.songUri, input.arrangementStyle || 'Standard');
+    }
     
     return { success: true, data: output };
   } catch (error) {
@@ -65,8 +67,19 @@ export async function getFretboard(chord: string) {
 
 export async function getInitialSongs(arrangementStyle: string) {
   try {
-    const songUris = await getRecentChords(20, arrangementStyle); // Fetch more to account for duplicates
-    const uniqueSongUris = [...new Set(songUris)].slice(0, 10); // Deduplicate and limit
+    const recentSongs = await getRecentChords(50); // Fetch more to have a pool for filtering
+    
+    // Separate songs by style
+    const styleMatchingSongs = recentSongs.filter(song => song.arrangementStyle === arrangementStyle);
+    const otherSongs = recentSongs.filter(song => song.arrangementStyle !== arrangementStyle);
+
+    // Create a combined list, prioritizing the matching style
+    const combinedUris = [
+        ...styleMatchingSongs.map(s => s.songUri),
+        ...otherSongs.map(s => s.songUri)
+    ];
+
+    const uniqueSongUris = [...new Set(combinedUris)].slice(0, 10);
     
     const trackDetailsPromises = uniqueSongUris.map(uri => getTrackDetails(uri));
     const tracks = await Promise.all(
@@ -77,16 +90,20 @@ export async function getInitialSongs(arrangementStyle: string) {
     );
     
     const validTracks = tracks.filter(Boolean);
+    const validUris = validTracks.map(track => track!.uri);
 
-    const searchResults = validTracks.map((track, index) => ({
-        uri: uniqueSongUris[index],
+    const searchResults = validTracks.map((track) => ({
+        uri: track!.uri,
         name: track!.name,
         artist: track!.artists.join(', '),
         art: track!.art,
         previewUrl: track!.previewUrl,
     }));
+    
+    // Filter search results to only include tracks that were successfully fetched
+    const finalResults = searchResults.filter(sr => validUris.includes(sr.uri));
 
-    return { success: true, data: searchResults };
+    return { success: true, data: finalResults };
 
   } catch (error) {
     console.error('Error fetching initial songs:', error);
