@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, FormEvent, useEffect, ChangeEvent } from 'react';
+import { useState, useRef, FormEvent, useEffect, ChangeEvent, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,6 +32,7 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
+  const [initialSongs, setInitialSongs] = useState<Song[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -41,24 +42,26 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchInitialSongs = async () => {
-      setIsFetchingInitial(true);
-      const result = await getInitialSongs();
-      if (result.success && result.data) {
-        const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }));
-        setSearchResults(songsWithLocalFlag);
-      } else {
-         toast({
-            variant: "destructive",
-            title: "Could not load songs",
-            description: result.error,
-          });
-      }
-      setIsFetchingInitial(false);
-    };
-    fetchInitialSongs();
+  const fetchInitialSongs = useCallback(async () => {
+    setIsFetchingInitial(true);
+    const result = await getInitialSongs();
+    if (result.success && result.data) {
+      const songsWithLocalFlag = result.data.map(song => ({ ...song, isLocal: false }));
+      setInitialSongs(songsWithLocalFlag);
+      setSearchResults(songsWithLocalFlag);
+    } else {
+       toast({
+          variant: "destructive",
+          title: "Could not load songs",
+          description: result.error,
+        });
+    }
+    setIsFetchingInitial(false);
   }, [toast]);
+
+  useEffect(() => {
+    fetchInitialSongs();
+  }, [fetchInitialSongs]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -99,6 +102,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!searchQuery) {
+        setSearchResults(initialSongs);
         return;
     };
 
@@ -122,6 +126,14 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       });
     }
   };
+
+  const handleSearchInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query === '') {
+        setSearchResults(initialSongs);
+    }
+  }
 
 
   const handleSelect = (song: Song) => {
@@ -224,7 +236,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
               placeholder="Search for a song or artist..."
               className="pl-10"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchInputChange}
               disabled={isLoading}
             />
           </div>
