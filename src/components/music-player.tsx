@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
 import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2 } from 'lucide-react';
 import Image from 'next/image';
-import { searchSongs, getInitialSongs } from '@/app/actions';
+import { searchSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
@@ -22,18 +22,27 @@ type Song = {
   previewUrl: string | null;
 };
 
-
 interface MusicPlayerProps {
   onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string) => void;
   isLoading: boolean;
+  initialSongs: Song[];
+  searchResults: Song[];
+  setSearchResults: (songs: Song[]) => void;
+  isFetchingInitial: boolean;
+  fetchInitialSongs: (style: string) => Promise<Song[]>;
 }
 
-export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProps) {
+export default function MusicPlayer({ 
+  onSongSelect, 
+  isLoading, 
+  initialSongs,
+  searchResults,
+  setSearchResults,
+  isFetchingInitial,
+  fetchInitialSongs
+}: MusicPlayerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Song[]>([]);
-  const [initialSongs, setInitialSongs] = useState<Song[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
@@ -45,35 +54,15 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const isStyleChange = useRef(false);
   const generationTriggerSong = useRef<Song | null>(null);
 
-
-  const fetchInitialSongs = useCallback(async (style: string) => {
-    setIsFetchingInitial(true);
-    const result = await getInitialSongs(style);
-    if (result.success && result.data) {
-      const songsWithLocalFlag = result.data.map(song => ({ ...song }));
-      setInitialSongs(songsWithLocalFlag);
-      setSearchResults(songsWithLocalFlag);
-    } else {
-       toast({
-          variant: "destructive",
-          title: "Could not load songs",
-          description: result.error,
-        });
-    }
-    setIsFetchingInitial(false);
-  }, [toast]);
-
   useEffect(() => {
     isStyleChange.current = true;
-    fetchInitialSongs(arrangementStyle);
+    fetchInitialSongs(arrangementStyle).then((songs) => {
+      if (isStyleChange.current && songs.length > 0) {
+        handleDoubleClick(songs[0]);
+        isStyleChange.current = false;
+      }
+    });
   }, [fetchInitialSongs, arrangementStyle]);
-  
-  useEffect(() => {
-    if (isStyleChange.current && searchResults.length > 0) {
-      handleDoubleClick(searchResults[0]);
-      isStyleChange.current = false;
-    }
-  }, [searchResults]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -120,8 +109,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
     if (result.success && result.data) {
       if (result.data.length > 0) {
-        const songsWithLocalFlag = result.data.map(song => ({ ...song}))
-        setSearchResults(songsWithLocalFlag);
+        setSearchResults(result.data);
       } else {
         setSearchResults([]);
         toast({ title: 'No results', description: 'No songs found for your search.' });
@@ -154,7 +142,12 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     setSelectedSongForPreview(song);
     generationTriggerSong.current = song;
 
-    if (!song.previewUrl) {
+    if (song.previewUrl) {
+      if (audioRef.current) {
+        audioRef.current.src = song.previewUrl;
+        audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
+      }
+    } else {
         toast({
             variant: "destructive",
             title: "Preview Unavailable",
@@ -182,7 +175,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         art: 'https://picsum.photos/100/100?random=99',
         previewUrl: fileUrl,
       };
-      setSearchResults(prev => [fileSong, ...prev.filter(s => !s.uri.startsWith('local:'))]);
+      setSearchResults([fileSong, ...searchResults.filter(s => !s.uri.startsWith('local:'))]);
       handleDoubleClick(fileSong);
     }
   };

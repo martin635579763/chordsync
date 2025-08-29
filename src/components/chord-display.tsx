@@ -12,23 +12,39 @@ import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 interface ChordDisplayProps {
   chordData: GenerateChordsOutput | null;
   isLoading: boolean;
-  currentSong: { name: string; artist: string; art: string } | null;
+  currentSong: { name: string; artist: string; art: string, uri: string } | null;
 }
 
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {chordData.lines.map((line, lineIndex) => (
-                <div key={lineIndex} className="flex flex-col gap-1">
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                       {line.measures.map((measure, measureIndex) => (
-                            <span key={measureIndex} className="text-primary font-bold font-code text-sm min-h-[1em]">{measure.chords || ' '}</span>
-                        ))}
+    
+    // When lyrics are present
+    if (chordData.lines.some(line => line.lyrics)) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {chordData.lines.map((line, lineIndex) => (
+                    <div key={lineIndex} className="flex flex-col gap-1">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                           {line.measures.map((measure, measureIndex) => (
+                                <span key={measureIndex} className="text-primary font-bold font-code text-sm min-h-[1em]">{measure.chords || ' '}</span>
+                            ))}
+                        </div>
+                        <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
                     </div>
-                    <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
+                ))}
+            </div>
+        )
+    }
+
+    // When no lyrics, display chords in a grid
+    const allMeasures = chordData.lines.flatMap(line => line.measures);
+    return (
+        <div className="grid grid-cols-4 gap-4 animate-in fade-in duration-500">
+            {allMeasures.map((measure, index) => (
+                <div key={index} className="flex items-center justify-center p-2 rounded-md bg-muted/30">
+                    <span className="text-primary font-bold font-code text-lg">{measure.chords || ' '}</span>
                 </div>
             ))}
         </div>

@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { getChords } from '@/app/actions';
+import { useState, useEffect, useCallback } from 'react';
+import { getChords, getInitialSongs } from '@/app/actions';
 import ChordDisplay from '@/components/chord-display';
 import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,18 +11,53 @@ import { useToast } from '@/hooks/use-toast';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 import SimpleChordsDisplay from '@/components/simple-chords-display';
 
+type Song = {
+  uri: string;
+  name: string;
+  artist: string;
+  art: string;
+  previewUrl: string | null;
+};
+
 export default function Home() {
   const [chordData, setChordData] = useState<GenerateChordsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string } | null>(null);
+  const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string, uri: string } | null>(null);
   const { toast } = useToast();
 
+  const [initialSongs, setInitialSongs] = useState<Song[]>([]);
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
+  const [isFetchingInitial, setIsFetchingInitial] = useState(true);
+
+  const fetchSongs = useCallback(async (style: string) => {
+    setIsFetchingInitial(true);
+    const result = await getInitialSongs(style);
+    if (result.success && result.data) {
+      setInitialSongs(result.data);
+      setSearchResults(result.data);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Could not load songs',
+        description: result.error,
+      });
+      setInitialSongs([]);
+      setSearchResults([]);
+    }
+    setIsFetchingInitial(false);
+    return result.data || [];
+  }, [toast]);
+
+
   const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string, lyrics?: string) => {
-    setIsLoading(true);
-    setChordData(null);
-    setCurrentSong({ name: song.name, artist: song.artist, art: song.art });
+    const isNewSongRequest = !currentSong || song.uri !== currentSong.uri || !chordData;
     
-    // Simulate API delay for a better UX feel
+    setIsLoading(true);
+    if (isNewSongRequest) {
+      setChordData(null);
+    }
+    setCurrentSong({ name: song.name, artist: song.artist, art: song.art, uri: song.uri });
+    
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const result = await getChords({ songUri: song.uri, arrangementStyle, lyrics });
@@ -30,13 +65,16 @@ export default function Home() {
 
     if (result.success && result.data) {
       setChordData(result.data);
+      // If we just generated chords for a new song (not from local file), refresh the initial songs list
+      if (!song.uri.startsWith('local:') && !initialSongs.some(s => s.uri === song.uri)) {
+         fetchSongs(arrangementStyle);
+      }
     } else {
       toast({
         variant: "destructive",
         title: "Error",
         description: result.error || "An unknown error occurred.",
       });
-      // Don't clear current song if chord gen fails, so user can see what they selected
     }
   };
 
@@ -51,7 +89,15 @@ export default function Home() {
       <div className="w-full max-w-7xl grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1">
         <Card className="shadow-lg bg-card/50 xl:col-span-1">
           <CardContent className="p-4 md:p-6 h-full">
-            <MusicPlayer onSongSelect={handleSongSelect} isLoading={isLoading} />
+            <MusicPlayer
+              onSongSelect={handleSongSelect}
+              isLoading={isLoading}
+              initialSongs={initialSongs}
+              searchResults={searchResults}
+              setSearchResults={setSearchResults}
+              isFetchingInitial={isFetchingInitial}
+              fetchInitialSongs={fetchSongs}
+            />
           </CardContent>
         </Card>
         <div className="grid grid-cols-1 lg:grid-cols-3 xl:col-span-2 gap-8">
