@@ -9,7 +9,6 @@ import { Music } from 'lucide-react';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import FretboardDiagram from '@/components/fretboard-diagram';
-import TablatureDisplay from '@/components/tablature-display';
 
 
 interface ChordDisplayProps {
@@ -38,18 +37,15 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {chordData.lines.map((line, lineIndex) => (
-                <div key={lineIndex} className="flex flex-col gap-2">
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                <div key={lineIndex} className="flex flex-col gap-1">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
                        {line.measures.map((measure, measureIndex) => (
-                            <div key={measureIndex} className="flex flex-col">
-                                <span className="text-primary font-bold font-code text-sm">{measure.chords || ' '}</span>
-                                <TablatureDisplay tablature={measure.tablature} />
-                            </div>
+                            <span key={measureIndex} className="text-primary font-bold font-code text-sm min-h-[1em]">{measure.chords || ' '}</span>
                         ))}
                     </div>
-                    <p className="text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
+                    <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
                 </div>
             ))}
         </div>
@@ -65,10 +61,6 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
                 <Skeleton className="h-5 w-1/2 bg-muted/50" />
                 <Skeleton className="h-5 w-1/2 bg-muted/50" />
                 <Skeleton className="h-5 w-1/2 bg-muted/50" />
-            </div>
-             <div className="grid grid-cols-2 gap-4 mt-2">
-                <Skeleton className="h-16 w-full bg-muted/50" />
-                <Skeleton className="h-16 w-full bg-muted/50" />
             </div>
             <Skeleton className="h-6 w-full bg-muted/50 mt-2" />
         </div>
