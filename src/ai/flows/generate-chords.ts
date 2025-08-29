@@ -52,7 +52,7 @@ const prompt = ai.definePrompt({
   - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony. The tablature should reflect these richer patterns.
 
   For each line of lyrics, provide:
-  1. The lyric text.
+  1. The lyric text in Chinese.
   2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
   3. For each measure, also provide a 'tablature'. This should be an array of 6 strings, representing a standard guitar tab for the right hand. The order is e, B, G, D, A, E (high to low).
      - The tablature MUST represent the SEQUENCE of notes played over time.
@@ -65,7 +65,7 @@ const prompt = ai.definePrompt({
   Also, provide an array of all unique chords found in the song.
   
   Example for one line with a fingerpicking pattern showing sequence:
-  - lyrics: "I see trees of green"
+  - lyrics: "我看見樹的翠綠"
   - measures: [
       {
         chords: "C", 
