@@ -1,3 +1,4 @@
+
 'use server';
 
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
@@ -67,19 +68,11 @@ export async function getFretboard(chord: string) {
 
 export async function getInitialSongs(arrangementStyle: string) {
   try {
-    const recentSongs = await getRecentChords(50); // Fetch more to have a pool for filtering
+    const recentSongs = await getRecentChords(50);
     
-    // Separate songs by style
     const styleMatchingSongs = recentSongs.filter(song => song.arrangementStyle === arrangementStyle);
-    const otherSongs = recentSongs.filter(song => song.arrangementStyle !== arrangementStyle);
 
-    // Create a combined list, prioritizing the matching style
-    const combinedUris = [
-        ...styleMatchingSongs.map(s => s.songUri),
-        ...otherSongs.map(s => s.songUri)
-    ];
-
-    const uniqueSongUris = [...new Set(combinedUris)].slice(0, 10);
+    const uniqueSongUris = [...new Set(styleMatchingSongs.map(s => s.songUri))].slice(0, 10);
     
     const trackDetailsPromises = uniqueSongUris.map(uri => getTrackDetails(uri));
     const tracks = await Promise.all(
@@ -100,7 +93,6 @@ export async function getInitialSongs(arrangementStyle: string) {
         previewUrl: track!.previewUrl,
     }));
     
-    // Filter search results to only include tracks that were successfully fetched
     const finalResults = searchResults.filter(sr => validUris.includes(sr.uri));
 
     return { success: true, data: finalResults };

@@ -37,7 +37,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [arrangementStyle, setArrangementStyle] = useState('Pop Arrangement');
+  const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
   const lyricsFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
@@ -276,6 +276,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
               <SelectValue placeholder="Select arrangement style" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="Standard">Standard</SelectItem>
               <SelectItem value="Pop Arrangement">Pop Arrangement</SelectItem>
             </SelectContent>
           </Select>
