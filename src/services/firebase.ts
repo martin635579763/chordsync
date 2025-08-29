@@ -63,33 +63,33 @@ export async function setCachedFretboard(chord: string, data: GenerateFretboardO
   }
 }
 
-export async function getCachedChords(songUri: string): Promise<GenerateChordsOutput | null> {
-  const docId = sanitizeDocId(songUri);
+export async function getCachedChords(cacheKey: string): Promise<GenerateChordsOutput | null> {
+  const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      console.log(`[Firestore] Cache hit for song: ${songUri} (docId: ${docId})`);
+      console.log(`[Firestore] Cache hit for song: ${cacheKey} (docId: ${docId})`);
       return docSnap.data() as GenerateChordsOutput;
     } else {
-      console.log(`[Firestore] Cache miss for song: ${songUri} (docId: ${docId})`);
+      console.log(`[Firestore] Cache miss for song: ${cacheKey} (docId: ${docId})`);
       return null;
     }
   } catch (error) {
-    console.error(`[Firestore] Error getting cached chords for ${songUri} (docId: ${docId}):`, error);
+    console.error(`[Firestore] Error getting cached chords for ${cacheKey} (docId: ${docId}):`, error);
     return null;
   }
 }
 
-export async function setCachedChords(songUri: string, data: GenerateChordsOutput): Promise<void> {
-  const docId = sanitizeDocId(songUri);
+export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string): Promise<void> {
+  const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
-    await setDoc(docRef, {...data, originalUri: songUri, timestamp: new Date()});
-    console.log(`[Firestore] Successfully cached chords for song: ${songUri} (docId: ${docId})`);
+    await setDoc(docRef, {...data, songUri, timestamp: new Date()});
+    console.log(`[Firestore] Successfully cached chords for song: ${cacheKey} (docId: ${docId})`);
   } catch (error) {
-    console.error(`[Firestore] Error setting cached chords for ${songUri} (docId: ${docId}):`, error);
+    console.error(`[Firestore] Error setting cached chords for ${cacheKey} (docId: ${docId}):`, error);
   }
 }
 
@@ -97,7 +97,7 @@ export async function getRecentChords(count: number): Promise<string[]> {
     try {
         const q = query(collection(db, chordCacheCollection), orderBy("timestamp", "desc"), limit(count));
         const querySnapshot = await getDocs(q);
-        const songUris = querySnapshot.docs.map(doc => doc.data().originalUri).filter(Boolean);
+        const songUris = querySnapshot.docs.map(doc => doc.data().songUri).filter(Boolean);
         console.log(`[Firestore] Fetched ${songUris.length} recent song URIs.`);
         return songUris;
     } catch (error) {

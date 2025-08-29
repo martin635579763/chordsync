@@ -19,7 +19,7 @@ export async function getChords(input: GenerateChordsInput) {
     const output = await generateChords(input);
 
     // 3. Store in cache for future use
-    await setCachedChords(cacheKey, output);
+    await setCachedChords(cacheKey, output, input.songUri);
     
     return { success: true, data: output };
   } catch (error) {
@@ -65,8 +65,10 @@ export async function getFretboard(chord: string) {
 
 export async function getInitialSongs() {
   try {
-    const songUris = await getRecentChords(10);
-    const trackDetailsPromises = songUris.map(uri => getTrackDetails(uri));
+    const songUris = await getRecentChords(20); // Fetch more to account for duplicates
+    const uniqueSongUris = [...new Set(songUris)].slice(0, 10); // Deduplicate and limit
+    
+    const trackDetailsPromises = uniqueSongUris.map(uri => getTrackDetails(uri));
     const tracks = await Promise.all(
         trackDetailsPromises.map(p => p.catch(e => {
             console.error("Failed to fetch a track detail, skipping:", e);
@@ -77,7 +79,7 @@ export async function getInitialSongs() {
     const validTracks = tracks.filter(Boolean);
 
     const searchResults = validTracks.map((track, index) => ({
-        uri: songUris[index],
+        uri: uniqueSongUris[index],
         name: track!.name,
         artist: track!.artists.join(', '),
         art: track!.art,
