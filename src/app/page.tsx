@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getChords, getInitialSongs } from '@/app/actions';
+import { getChords, getInitialSongs, deleteChords } from '@/app/actions';
 import ChordDisplay from '@/components/chord-display';
 import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
@@ -81,6 +81,27 @@ export default function Home() {
   const handleUpdate = (song: Song, arrangementStyle: string) => {
     handleSongSelect(song, arrangementStyle, undefined, true);
   };
+  
+  const handleDelete = async (song: Song, arrangementStyle: string) => {
+    const result = await deleteChords(song.uri, arrangementStyle);
+    if (result.success) {
+      toast({
+        title: 'Deleted',
+        description: `Removed "${song.name}" from your generated list.`
+      });
+      fetchSongs(arrangementStyle);
+      if (currentSong?.uri === song.uri) {
+        setChordData(null);
+        setCurrentSong(null);
+      }
+    } else {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.error || "An unknown error occurred.",
+      });
+    }
+  };
 
 
   return (
@@ -97,6 +118,7 @@ export default function Home() {
             <MusicPlayer
               onSongSelect={handleSongSelect}
               onUpdate={handleUpdate}
+              onDelete={handleDelete}
               isLoading={isLoading}
               initialSongs={initialSongs}
               searchResults={searchResults}

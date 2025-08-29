@@ -4,7 +4,7 @@
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
-import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists } from '@/services/firebase';
+import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists, deleteCachedChords as deleteChordsFromDb } from '@/services/firebase';
 
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
@@ -113,5 +113,16 @@ export async function getInitialSongs(arrangementStyle: string) {
   } catch (error) {
     console.error('Error fetching initial songs:', error);
     return { success: false, error: 'Failed to load initial songs.' };
+  }
+}
+
+export async function deleteChords(songUri: string, arrangementStyle: string) {
+  try {
+    const cacheKey = `${songUri}-${arrangementStyle}`;
+    await deleteChordsFromDb(cacheKey);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting chords:', error);
+    return { success: false, error: 'Failed to delete chords. Please try again.' };
   }
 }

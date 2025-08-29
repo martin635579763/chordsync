@@ -2,7 +2,7 @@
 'use server';
 
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 
@@ -109,6 +109,19 @@ export async function setCachedChords(cacheKey: string, data: GenerateChordsOutp
     console.error(`[Firestore] Error setting cached chords for ${cacheKey} (docId: ${docId}):`, error);
   }
 }
+
+export async function deleteCachedChords(cacheKey: string): Promise<void> {
+    const docId = sanitizeDocId(cacheKey);
+    try {
+        const docRef = doc(db, chordCacheCollection, docId);
+        await deleteDoc(docRef);
+        console.log(`[Firestore] Successfully deleted cached chords for: ${cacheKey} (docId: ${docId})`);
+    } catch (error) {
+        console.error(`[Firestore] Error deleting cached chords for ${cacheKey} (docId: ${docId}):`, error);
+        throw error; // Re-throw to be caught by the server action
+    }
+}
+
 
 export async function getRecentChords(count: number): Promise<{ songUri: string, arrangementStyle: string }[]> {
     try {

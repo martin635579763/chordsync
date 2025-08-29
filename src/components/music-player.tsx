@@ -7,13 +7,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw } from 'lucide-react';
+import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { searchSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Song = {
@@ -28,6 +27,7 @@ type Song = {
 interface MusicPlayerProps {
   onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string, forceNew?: boolean) => void;
   onUpdate: (song: Song, arrangementStyle: string) => void;
+  onDelete: (song: Song, arrangementStyle: string) => void;
   isLoading: boolean;
   initialSongs: Song[];
   searchResults: Song[];
@@ -39,6 +39,7 @@ interface MusicPlayerProps {
 export default function MusicPlayer({ 
   onSongSelect, 
   onUpdate,
+  onDelete,
   isLoading, 
   initialSongs,
   searchResults,
@@ -158,7 +159,7 @@ export default function MusicPlayer({
         if (audioRef.current.src === song.previewUrl && isPlaying) {
           audioRef.current.pause();
         } else {
-          audio.current.src = song.previewUrl;
+          audioRef.current.src = song.previewUrl;
           audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
         }
       }
@@ -182,6 +183,11 @@ export default function MusicPlayer({
   const handleUpdateButtonClick = (e: React.MouseEvent, song: Song) => {
     e.stopPropagation(); // Prevent single/double click on the row
     onUpdate(song, arrangementStyle);
+  };
+  
+  const handleDeleteButtonClick = (e: React.MouseEvent, song: Song) => {
+    e.stopPropagation();
+    onDelete(song, arrangementStyle);
   };
 
   const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -283,17 +289,28 @@ export default function MusicPlayer({
         </div>
         
         {song.isGenerated && (
-          <div className="flex items-center gap-2 ml-auto">
-            <Badge variant="secondary" className="bg-green-700/20 text-green-400 border-none">已生成</Badge>
+          <div className="flex items-center gap-1 ml-auto">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
                     <RefreshCw className={`w-4 h-4 ${isLoading && selectedSongForPreview?.uri === song.uri ? 'animate-spin' : ''}`} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Regenerate Chords</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={(e) => handleDeleteButtonClick(e, song)} disabled={isLoading}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete Arrangement</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -404,7 +421,3 @@ export default function MusicPlayer({
     </div>
   );
 }
-
-    
-
-    
