@@ -87,6 +87,14 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     }
   }, [selectedSong]);
 
+  const handleArrangementChange = (style: string) => {
+    setArrangementStyle(style);
+    if (selectedSong) {
+      // Re-trigger generation for the currently selected song with the new style
+      onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, style);
+    }
+  };
+
 
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -187,8 +195,8 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       <button
         key={song.uri}
         onClick={() => handleSelect(song)}
-        disabled={isLoading && selectedSong?.uri !== song.uri}
-        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+        disabled={isLoading}
+        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
            <Image src={song.art} alt={song.name} fill className="object-cover" data-ai-hint="music album" />
@@ -217,16 +225,17 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isLoading}
             />
           </div>
-          <Button type="submit" disabled={isSearching}>
+          <Button type="submit" disabled={isSearching || isLoading}>
             {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
           </Button>
         </form>
 
         <div className="mb-4 space-y-2">
           <Label htmlFor="arrangement-style" className="flex items-center gap-2 text-muted-foreground"><Wand2 className="w-4 h-4 text-accent"/> Arrangement Style</Label>
-          <Select value={arrangementStyle} onValueChange={setArrangementStyle}>
+          <Select value={arrangementStyle} onValueChange={handleArrangementChange} disabled={isLoading}>
             <SelectTrigger id="arrangement-style" className="w-full">
               <SelectValue placeholder="Select arrangement style" />
             </SelectTrigger>
@@ -249,7 +258,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         <div>
            <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> Local File</p>
           <Input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".mp3,.wav" />
-          <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+          <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
             <Upload className="mr-2 h-4 w-4" />
             Upload MP3 File
           </Button>
@@ -293,4 +302,5 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     </div>
   );
 
+    
     
