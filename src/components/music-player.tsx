@@ -50,7 +50,7 @@ export default function MusicPlayer({
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [arrangementStyle, setArrangementStyle] = useState('Pop Arrangement');
+  const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
   const lyricsFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
@@ -158,7 +158,7 @@ export default function MusicPlayer({
         if (audioRef.current.src === song.previewUrl && isPlaying) {
           audioRef.current.pause();
         } else {
-          audioRef.current.src = song.previewUrl;
+          audio.current.src = song.previewUrl;
           audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
         }
       }
@@ -335,6 +335,7 @@ export default function MusicPlayer({
               <SelectValue placeholder="Select arrangement style" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="Standard">Standard</SelectItem>
               <SelectItem value="Pop Arrangement">Pop Arrangement</SelectItem>
             </SelectContent>
           </Select>
@@ -403,5 +404,7 @@ export default function MusicPlayer({
     </div>
   );
 }
+
+    
 
     
