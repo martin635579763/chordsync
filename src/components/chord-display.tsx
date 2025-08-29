@@ -41,11 +41,12 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
             {chordData.lines.map((line, lineIndex) => (
                 <div key={lineIndex} className="grid grid-cols-4 gap-x-4 gap-y-1">
                     {line.measures.map((measure, measureIndex) => (
-                        <div key={measureIndex} className="text-primary font-bold font-code text-sm">
-                            {measure.chords}
+                        <div key={measureIndex} className="flex flex-col">
+                            <span className="text-primary font-bold font-code text-sm">{measure.chords || ' '}</span>
+                            <span className="text-muted-foreground font-code text-xs mt-1">{measure.strummingPattern || ' '}</span>
                         </div>
                     ))}
-                    <p className="col-span-4 text-foreground text-lg">{line.lyrics || ' '}</p>
+                    <p className="col-span-4 text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
                 </div>
             ))}
         </div>
