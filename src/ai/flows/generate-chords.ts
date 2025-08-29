@@ -24,7 +24,7 @@ const GenerateChordsOutputSchema = z.object({
     lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
       chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
-      strummingPattern: z.string().optional().describe('The suggested right-hand strumming pattern for this measure. Use "D" for downstroke and "U" for upstroke (e.g., "D DU UDU").'),
+      tablature: z.array(z.string()).length(6).optional().describe('The tablature for the right hand picking/strumming pattern for this measure. It is an array of 6 strings, representing the 6 guitar strings (e, B, G, D, A, E). Use numbers for frets, "x" for muted notes, and "-" for rests. Ensure the length of each string in the array is consistent for proper formatting.'),
     })).describe('The measures for this line of lyrics.'),
   })).describe('The lyrics and chords for the song, line by line.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
@@ -43,24 +43,52 @@ const prompt = ai.definePrompt({
     arrangementStyle: z.string().optional(),
   })},
   output: {schema: GenerateChordsOutputSchema},
-  prompt: `You are a musical expert and can generate chord progressions, lyrics, and strumming patterns for songs.
+  prompt: `You are a musical expert and can generate chord progressions, lyrics, and detailed guitar tablature for songs.
 
-  Generate the Chinese lyrics, a chord progression, and a right-hand strumming pattern for the song "{{songName}}" by "{{artistName}}".
+  Generate the Chinese lyrics, a chord progression, and a right-hand tablature pattern for the song "{{songName}}" by "{{artistName}}".
   
   Please adhere to the following arrangement style: {{arrangementStyle}}.
-  - If the style is 'Standard', provide the most common and straightforward chord progression.
-  - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony.
+  - If the style is 'Standard', provide a common and straightforward fingerpicking or strumming pattern.
+  - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony. The tablature should reflect these richer patterns.
 
   For each line of lyrics, provide:
   1. The lyric text.
-  2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G") without extra characters or spaces.
-  3. For each measure, also provide a suggested 'strummingPattern'. Use 'D' for a downstroke and 'U' for an upstroke. For example: "D DU UDU".
+  2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
+  3. For each measure, also provide a 'tablature'. This should be an array of 6 strings, representing a standard guitar tab for the right hand. The order is e, B, G, D, A, E (high to low).
+     - Use numbers (0, 1, 2...) to indicate a fret to be played on a string.
+     - Use 'x' to indicate a muted or percussive hit.
+     - Use '-' for a rest or unplayed string.
+     - For strumming, you can use 'x' on the strings to be strummed.
+     - The length of each string in the tab array MUST be consistent within a single measure to ensure proper visual alignment.
 
   Also, provide an array of all unique chords found in the song.
   
-  Example for one line:
+  Example for one line with a fingerpicking pattern:
   - lyrics: "I see trees of green"
-  - measures: [{chords: "C", strummingPattern: "D DU UDU"}, {chords: "G7", strummingPattern: "D DU UDU"}]
+  - measures: [
+      {
+        chords: "C", 
+        tablature: [
+          "---0-----",
+          "-----1---",
+          "---0-----",
+          "-----2---",
+          "---3-----",
+          "---------"
+        ]
+      }, 
+      {
+        chords: "G7", 
+        tablature: [
+          "---1-----",
+          "-----0---",
+          "---0-----",
+          "-----0---",
+          "---2-----",
+          "---3-----"
+        ]
+      }
+    ]
 
   Structure the final output as an object containing 'lines' and 'uniqueChords'.`,
 });
@@ -89,6 +117,20 @@ const generateChordsFlow = ai.defineFlow(
     }
 
     const {output} = await prompt({ songName, artistName, arrangementStyle: arrangementStyle || 'Standard' });
+
+    // Post-processing to ensure uniqueChords are clean
+    if (output && output.uniqueChords) {
+        const chordSet = new Set<string>();
+        output.lines.forEach(line => {
+            line.measures.forEach(measure => {
+                measure.chords.split(' ').forEach(chord => {
+                    if (chord) chordSet.add(chord.trim());
+                });
+            });
+        });
+        output.uniqueChords = Array.from(chordSet);
+    }
+    
     return output!;
   }
 );
