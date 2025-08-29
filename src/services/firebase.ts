@@ -71,7 +71,11 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
 
     if (docSnap.exists()) {
       console.log(`[Firestore] Cache hit for song: ${cacheKey} (docId: ${docId})`);
-      return docSnap.data() as GenerateChordsOutput;
+      const data = docSnap.data();
+      // Firestore Timestamps are not plain objects and cannot be passed from Server to Client Components.
+      // We don't need it on the client, so we can just delete it.
+      delete data.timestamp;
+      return data as GenerateChordsOutput;
     } else {
       console.log(`[Firestore] Cache miss for song: ${cacheKey} (docId: ${docId})`);
       return null;
