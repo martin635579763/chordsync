@@ -56,6 +56,8 @@ const prompt = ai.definePrompt({
 
   Also, provide an array of all unique chords found in the song.
   
+  IMPORTANT: You must generate the entire song. Do not leave out any data.
+
   Example for one line:
   - lyrics: "我看見樹的翠綠"
   - measures: [
