@@ -34,7 +34,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const [initialSongs, setInitialSongs] = useState<Song[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
@@ -43,6 +43,8 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const isStyleChange = useRef(false);
+  const generationTriggerSong = useRef<Song | null>(null);
+
 
   const fetchInitialSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
@@ -50,9 +52,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     if (result.success && result.data) {
       const songsWithLocalFlag = result.data.map(song => ({ ...song }));
       setInitialSongs(songsWithLocalFlag);
-      if(searchQuery === '') {
-        setSearchResults(songsWithLocalFlag);
-      }
+      setSearchResults(songsWithLocalFlag);
     } else {
        toast({
           variant: "destructive",
@@ -61,7 +61,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         });
     }
     setIsFetchingInitial(false);
-  }, [toast, searchQuery]);
+  }, [toast]);
 
   useEffect(() => {
     isStyleChange.current = true;
@@ -70,7 +70,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
   
   useEffect(() => {
     if (isStyleChange.current && searchResults.length > 0) {
-      handleSelect(searchResults[0]);
+      handleDoubleClick(searchResults[0]);
       isStyleChange.current = false;
     }
   }, [searchResults]);
@@ -96,11 +96,11 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio && selectedSong?.previewUrl && audio.src !== selectedSong.previewUrl) {
-        audio.src = selectedSong.previewUrl;
+    if (audio && selectedSongForPreview?.previewUrl && audio.src !== selectedSongForPreview.previewUrl) {
+        audio.src = selectedSongForPreview.previewUrl;
         audio.play().catch(e => console.error("Error playing audio on select:", e));
     }
-  }, [selectedSong]);
+  }, [selectedSongForPreview]);
 
   const handleArrangementChange = (style: string) => {
     setArrangementStyle(style);
@@ -140,17 +140,20 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     setSearchQuery(query);
     if (query === '') {
         setSearchResults(initialSongs);
+    } else {
+        const filtered = initialSongs.filter(song => 
+            song.name.toLowerCase().includes(query.toLowerCase()) || 
+            song.artist.toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(filtered);
     }
   }
 
 
-  const handleSelect = (song: Song) => {
-    if (lyricsFileRef.current) lyricsFileRef.current.value = "";
-    setUploadedLyrics(undefined);
-    
-    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
-    setSelectedSong(song);
-    
+  const handleSingleClick = (song: Song) => {
+    setSelectedSongForPreview(song);
+    generationTriggerSong.current = song;
+
     if (!song.previewUrl) {
         toast({
             variant: "destructive",
@@ -160,6 +163,14 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     }
   };
   
+  const handleDoubleClick = (song: Song) => {
+    if (lyricsFileRef.current) lyricsFileRef.current.value = "";
+    setUploadedLyrics(undefined);
+    
+    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle);
+    setSelectedSongForPreview(song);
+  };
+
   const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -172,23 +183,25 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
         previewUrl: fileUrl,
       };
       setSearchResults(prev => [fileSong, ...prev.filter(s => !s.uri.startsWith('local:'))]);
-      handleSelect(fileSong);
+      handleDoubleClick(fileSong);
     }
   };
 
   const handleLyricsFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && generationTriggerSong.current) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setUploadedLyrics(text);
-        if (selectedSong) {
-            onSongSelect({ uri: selectedSong.uri, name: selectedSong.name, artist: selectedSong.artist, art: selectedSong.art }, arrangementStyle, text);
+        if (generationTriggerSong.current) {
+            onSongSelect({ uri: generationTriggerSong.current.uri, name: generationTriggerSong.current.name, artist: generationTriggerSong.current.artist, art: generationTriggerSong.current.art }, arrangementStyle, text);
         }
         toast({ title: 'Lyrics uploaded', description: 'Generating chords for the uploaded lyrics.'})
       };
       reader.readAsText(file);
+    } else if (!generationTriggerSong.current) {
+        toast({ variant: 'destructive', title: 'No song selected', description: 'Please select a song before uploading lyrics.'});
     }
   };
   
@@ -196,7 +209,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     const audio = audioRef.current;
     if (!audio) return;
     
-    if (selectedSong && !selectedSong.previewUrl) {
+    if (selectedSongForPreview && !selectedSongForPreview.previewUrl) {
       toast({
             variant: "destructive",
             title: "Preview Unavailable",
@@ -221,10 +234,19 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       );
     }
 
+    if (searchResults.length === 0 && searchQuery !== '') {
+      return (
+          <div className="text-center py-4 text-muted-foreground">
+              <p>No songs found for "{searchQuery}".</p>
+              <p>Click search to look on Spotify.</p>
+          </div>
+      );
+    }
+    
     if (searchResults.length === 0) {
       return (
           <div className="text-center py-4 text-muted-foreground">
-              <p>No songs to display. Try a search!</p>
+              <p>No songs in this library. Try a search!</p>
           </div>
       );
     }
@@ -232,9 +254,10 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
     return searchResults.map((song) => (
       <button
         key={song.uri}
-        onClick={() => handleSelect(song)}
+        onClick={() => handleSingleClick(song)}
+        onDoubleClick={() => handleDoubleClick(song)}
         disabled={isLoading}
-        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${selectedSong?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${selectedSongForPreview?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
            <Image src={song.art} alt={song.name} fill sizes="40px" className="object-cover" data-ai-hint="music album" />
@@ -243,7 +266,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
           <p className="font-semibold truncate">{song.name}</p>
           <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
         </div>
-        {song.uri === selectedSong?.uri && isLoading && (
+        {song.uri === selectedSongForPreview?.uri && isLoading && (
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
         )}
       </button>
@@ -259,7 +282,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search for a song or artist..."
+              placeholder="Filter local list or search Spotify..."
               className="pl-10"
               value={searchQuery}
               onChange={handleSearchInputChange}
@@ -302,7 +325,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
                     Upload MP3
                 </Button>
                 <Input type="file" ref={lyricsFileRef} onChange={handleLyricsFileChange} className="hidden" accept=".txt" />
-                <Button variant="outline" className="w-full" onClick={() => lyricsFileRef.current?.click()} disabled={!selectedSong || isLoading}>
+                <Button variant="outline" className="w-full" onClick={() => lyricsFileRef.current?.click()} disabled={!selectedSongForPreview || isLoading}>
                     <Upload className="mr-2 h-4 w-4" />
                     Upload Lyrics (.txt)
                 </Button>
@@ -312,9 +335,9 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
       
       <div className="mt-6 border-t pt-4">
         <div className="flex items-center gap-4 mb-2">
-            {selectedSong ? (
+            {selectedSongForPreview ? (
                 <div className="relative w-14 h-14 rounded-lg shadow-md overflow-hidden shrink-0">
-                  <Image src={selectedSong.art} alt={selectedSong.name} fill sizes="56px" className="object-cover" data-ai-hint="music album" />
+                  <Image src={selectedSongForPreview.art} alt={selectedSongForPreview.name} fill sizes="56px" className="object-cover" data-ai-hint="music album" />
                 </div>
             ) : (
                 <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shadow-md">
@@ -322,8 +345,8 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
                 </div>
             )}
             <div className="flex-1 overflow-hidden">
-                <p className="font-bold text-lg truncate font-headline">{selectedSong?.name || 'Nothing Playing'}</p>
-                <p className="text-muted-foreground truncate">{selectedSong?.artist || 'Select a song'}</p>
+                <p className="font-bold text-lg truncate font-headline">{selectedSongForPreview?.name || 'Nothing Playing'}</p>
+                <p className="text-muted-foreground truncate">{selectedSongForPreview?.artist || 'Select a song'}</p>
             </div>
         </div>
         <div className="flex justify-center items-center gap-4 mt-4">
@@ -333,7 +356,7 @@ export default function MusicPlayer({ onSongSelect, isLoading }: MusicPlayerProp
             <Button variant="ghost" size="icon">
                 <SkipBack className="w-6 h-6" />
             </Button>
-            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSong}>
+            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSongForPreview}>
                 {isPlaying ? <Pause className="w-8 h-8 text-accent-foreground" /> : <Play className="w-8 h-8 text-accent-foreground" />}
             </Button>
             <Button variant="ghost" size="icon">
