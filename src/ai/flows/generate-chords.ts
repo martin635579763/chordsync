@@ -24,7 +24,7 @@ const GenerateChordsOutputSchema = z.object({
     lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
       chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
-      tablature: z.array(z.string()).length(6).optional().describe('The tablature for the right hand picking/strumming pattern for this measure. It is an array of 6 strings, representing the 6 guitar strings (e, B, G, D, A, E). Use numbers for frets, "x" for muted notes, and "-" for rests. Ensure the length of each string in the array is consistent for proper formatting.'),
+      tablature: z.array(z.string()).length(6).optional().describe('The tablature for the right hand picking/strumming pattern for this measure. It is an array of 6 strings, representing the 6 guitar strings (e, B, G, D, A, E). Use numbers for frets, "x" for muted notes, and "-" for rests. This should represent the sequence of notes being played over time. Ensure the length of each string in the array is consistent for proper formatting.'),
     })).describe('The measures for this line of lyrics.'),
   })).describe('The lyrics and chords for the song, line by line.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
@@ -55,6 +55,7 @@ const prompt = ai.definePrompt({
   1. The lyric text.
   2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
   3. For each measure, also provide a 'tablature'. This should be an array of 6 strings, representing a standard guitar tab for the right hand. The order is e, B, G, D, A, E (high to low).
+     - The tablature MUST represent the SEQUENCE of notes played over time.
      - Use numbers (0, 1, 2...) to indicate a fret to be played on a string.
      - Use 'x' to indicate a muted or percussive hit.
      - Use '-' for a rest or unplayed string.
@@ -63,29 +64,29 @@ const prompt = ai.definePrompt({
 
   Also, provide an array of all unique chords found in the song.
   
-  Example for one line with a fingerpicking pattern:
+  Example for one line with a fingerpicking pattern showing sequence:
   - lyrics: "I see trees of green"
   - measures: [
       {
         chords: "C", 
         tablature: [
-          "---0-----",
-          "-----1---",
-          "---0-----",
-          "-----2---",
-          "---3-----",
-          "---------"
+          "-----0-------",
+          "---1---1-----",
+          "---0-----0---",
+          "-----2-------",
+          "-3-----------",
+          "-------------"
         ]
       }, 
       {
         chords: "G7", 
         tablature: [
-          "---1-----",
-          "-----0---",
-          "---0-----",
-          "-----0---",
-          "---2-----",
-          "---3-----"
+          "-----1-------",
+          "---0---0-----",
+          "---0-----0---",
+          "-----0-------",
+          "---2---------",
+          "-3-----------"
         ]
       }
     ]

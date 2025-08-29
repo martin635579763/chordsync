@@ -41,21 +41,15 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         <div className="space-y-8 animate-in fade-in duration-500">
             {chordData.lines.map((line, lineIndex) => (
                 <div key={lineIndex} className="flex flex-col gap-2">
-                    <div className="grid grid-cols-4 gap-x-4">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
                        {line.measures.map((measure, measureIndex) => (
                             <div key={measureIndex} className="flex flex-col">
                                 <span className="text-primary font-bold font-code text-sm">{measure.chords || ' '}</span>
+                                <TablatureDisplay tablature={measure.tablature} />
                             </div>
                         ))}
                     </div>
-                     <div className="grid grid-cols-4 gap-x-4">
-                       {line.measures.map((measure, measureIndex) => (
-                            <div key={`tab-${measureIndex}`} className="flex flex-col">
-                               <TablatureDisplay tablature={measure.tablature} />
-                            </div>
-                        ))}
-                    </div>
-                    <p className="col-span-4 text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
+                    <p className="text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
                 </div>
             ))}
         </div>

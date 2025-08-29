@@ -19,14 +19,16 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({ tablature }) => {
   }
 
   return (
-    <div className="font-code text-xs text-foreground bg-muted/20 p-1 rounded-sm">
-      {tablature.map((line, index) => (
-        <div key={index} className="flex items-center">
-          <span className="text-muted-foreground">{STRING_NAMES[index]}|</span>
-          <span className="tracking-widest">{line}</span>
-          <span>|</span>
+    <div className="inline-block bg-muted/20 p-1 rounded-sm overflow-x-auto">
+        <div className="font-code text-xs text-foreground">
+        {tablature.map((line, index) => (
+            <div key={index} className="flex items-center whitespace-nowrap">
+            <span className="text-muted-foreground">{STRING_NAMES[index]}|</span>
+            <span className="tracking-widest">{line}</span>
+            <span>|</span>
+            </div>
+        ))}
         </div>
-      ))}
     </div>
   );
 };
