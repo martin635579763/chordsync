@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 type Song = {
   uri: string;
@@ -58,28 +59,26 @@ export default function MusicPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const isStyleChange = useRef(false);
-  const isManuallySelected = useRef(false);
-
-  const handleArrangementChange = (style: string) => {
-    isStyleChange.current = true;
-    isManuallySelected.current = false;
-    setArrangementStyle(style);
-  };
   
   const handleSelect = useCallback((songs: Song[]) => {
-      if (isStyleChange.current && !isManuallySelected.current && songs.length > 0) {
+      if (isStyleChange.current && songs.length > 0) {
         handleDoubleClick(songs[0]);
         isStyleChange.current = false;
       }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleArrangementChange = (style: string) => {
+    setArrangementStyle(style);
+    fetchInitialSongs(style).then(handleSelect);
+    isStyleChange.current = true;
+  };
+  
   useEffect(() => {
-    fetchInitialSongs(arrangementStyle).then((songs) => {
-      handleSelect(songs);
-    });
+    fetchInitialSongs(arrangementStyle);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arrangementStyle, fetchInitialSongs]);
+  }, []);
+
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -124,7 +123,7 @@ export default function MusicPlayer({
         setSearchResults(result.data);
       } else {
         setSearchResults([]);
-        toast({ title: 'No results', description: 'No songs found for your search.' });
+        toast({ title: 'No results', description: 'No songs found for your search on Spotify.' });
       }
     } else {
       toast({
@@ -151,7 +150,6 @@ export default function MusicPlayer({
 
 
   const handleSingleClick = (song: Song) => {
-    isManuallySelected.current = true;
     setSelectedSongForPreview(song);
 
     if (song.previewUrl) {
@@ -173,6 +171,7 @@ export default function MusicPlayer({
   };
   
   const handleDoubleClick = (song: Song) => {
+    if (isLoading) return;
     if (lyricsFileRef.current) lyricsFileRef.current.value = "";
     setUploadedLyrics(undefined);
     
@@ -288,34 +287,37 @@ export default function MusicPlayer({
           <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
         </div>
         
-        {song.isGenerated && (
-          <div className="flex items-center gap-1 ml-auto">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
-                    <RefreshCw className={`w-4 h-4 ${isLoading && selectedSongForPreview?.uri === song.uri ? 'animate-spin' : ''}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Regenerate Chords</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={(e) => handleDeleteButtonClick(e, song)} disabled={isLoading}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete Arrangement</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
+        <div className="flex items-center gap-1 ml-auto">
+            {searchQuery && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
+            {song.isGenerated && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                        <RefreshCw className={`w-4 h-4 ${isLoading && selectedSongForPreview?.uri === song.uri ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Regenerate Chords</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+            )}
+            {!searchQuery && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={(e) => handleDeleteButtonClick(e, song)} disabled={isLoading}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete Arrangement</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+        </div>
         
         {isLoading && selectedSongForPreview?.uri === song.uri && !song.isGenerated && (
           <Loader2 className="w-5 h-5 animate-spin text-primary ml-auto" />
@@ -341,7 +343,7 @@ export default function MusicPlayer({
             />
           </div>
           <Button type="submit" disabled={isSearching || isLoading}>
-            {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
+            {isSearching ? <Loader2 className="animate-spin" /> : <SpotifyIcon className="w-5 h-5" />}
           </Button>
         </form>
 
@@ -359,7 +361,7 @@ export default function MusicPlayer({
         </div>
 
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
-          <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><SpotifyIcon className="w-5 h-5" /> Spotify Library</p>
+          <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> {searchQuery ? 'Search Results' : 'Generated Library'}</p>
           <div className="space-y-2">
             {renderSongList()}
           </div>
