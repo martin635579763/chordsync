@@ -67,7 +67,7 @@ export async function getTrackDetails(trackUri: string) {
     
     return trackDetails;
   } catch (error) {
-    console.error('Error fetching track details from Spotify:', error);
+    console.error('Error fetching track details from Spotify for trackUri', trackUri, ':', error);
     // Invalidate the client if there's an auth error
     if ((error as any).statusCode === 401) {
         spotifyApi = null;
