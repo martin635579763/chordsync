@@ -5,6 +5,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import type { GenerateAccompanimentOutput } from '@/ai/flows/generate-accompaniment';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -27,6 +28,7 @@ const db = getFirestore(app);
 
 const fretboardCacheCollection = 'fretboardCache';
 const chordCacheCollection = 'chordCache';
+const accompanimentCacheCollection = 'accompanimentCache';
 
 // Firestore document IDs cannot contain slashes or be empty.
 function sanitizeDocId(id: string): string {
@@ -116,6 +118,15 @@ export async function deleteCachedChords(cacheKey: string): Promise<void> {
         const docRef = doc(db, chordCacheCollection, docId);
         await deleteDoc(docRef);
         console.log(`[Firestore] Successfully deleted cached chords for: ${cacheKey} (docId: ${docId})`);
+        
+        // Also delete the associated accompaniment cache
+        const accompanimentDocId = sanitizeDocId(`${cacheKey}-accompaniment`);
+        const accompanimentDocRef = doc(db, accompanimentCacheCollection, accompanimentDocId);
+        if ((await getDoc(accompanimentDocRef)).exists()) {
+          await deleteDoc(accompanimentDocRef);
+          console.log(`[Firestore] Successfully deleted cached accompaniment for: ${cacheKey} (docId: ${accompanimentDocId})`);
+        }
+
     } catch (error) {
         console.error(`[Firestore] Error deleting cached chords for ${cacheKey} (docId: ${docId}):`, error);
         throw error; // Re-throw to be caught by the server action
@@ -144,6 +155,32 @@ export async function getRecentChords(count: number): Promise<{ songUri: string,
     }
 }
 
+export async function getCachedAccompaniment(cacheKey: string): Promise<GenerateAccompanimentOutput | null> {
+  const docId = sanitizeDocId(cacheKey);
+  try {
+    const docRef = doc(db, accompanimentCacheCollection, docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      console.log(`[Firestore] Accompaniment cache hit for: ${cacheKey}`);
+      return docSnap.data() as GenerateAccompanimentOutput;
+    }
+    return null;
+  } catch (error) {
+    console.error(`[Firestore] Error getting cached accompaniment for ${cacheKey}:`, error);
+    return null;
+  }
+}
+
+export async function setCachedAccompaniment(cacheKey: string, data: GenerateAccompanimentOutput): Promise<void> {
+  const docId = sanitizeDocId(cacheKey);
+  try {
+    const docRef = doc(db, accompanimentCacheCollection, docId);
+    await setDoc(docRef, data);
+    console.log(`[Firestore] Successfully cached accompaniment for: ${cacheKey}`);
+  } catch (error) {
+    console.error(`[Firestore] Error setting cached accompaniment for ${cacheKey}:`, error);
+  }
+}
 
 // Check if Firestore is connected by trying to read a document.
 export async function checkFirestoreConnection() {
