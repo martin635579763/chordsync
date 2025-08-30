@@ -79,10 +79,9 @@ export default function Home() {
             s.uri === song.uri ? { ...s, isGenerated: true } : s
           )
         );
-      } else {
-         if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
-           fetchSongs(arrangementStyle);
-        }
+      }
+       if (song.uri.startsWith('spotify:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
+         fetchSongs(arrangementStyle);
       }
     } else {
       toast({
