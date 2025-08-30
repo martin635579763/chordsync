@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw, Trash2 } from 'lucide-react';
+import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw, Trash2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,18 +98,21 @@ export default function MusicPlayer({
 
   const handleSearchSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!searchQuery) return;
     setIsSearching(true);
     await onSearch(searchQuery);
+    setIsShowingSearchResults(true);
     setIsSearching(false);
   };
 
   const handleSearchInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    if (query === '') {
-        setIsShowingSearchResults(false);
-    }
+    setSearchQuery(e.target.value);
   }
+
+  const handleBackToLibrary = () => {
+    setIsShowingSearchResults(false);
+    setSearchQuery('');
+  };
 
   const handleSingleClick = (song: Song) => {
     setSelectedSongForPreview(song);
@@ -295,7 +298,7 @@ export default function MusicPlayer({
               disabled={isLoading}
             />
           </div>
-          <Button type="submit" disabled={isSearching || isLoading}>
+          <Button type="submit" disabled={isSearching || isLoading || !searchQuery}>
             {isSearching ? <Loader2 className="animate-spin" /> : <SpotifyIcon className="w-5 h-5" />}
           </Button>
         </form>
@@ -314,7 +317,18 @@ export default function MusicPlayer({
         </div>
 
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
-          <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> {isShowingSearchResults ? 'Search Results' : 'Generated Library'}</p>
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+              <Music className="w-5 h-5" /> 
+              {isShowingSearchResults ? 'Search Results' : 'Generated Library'}
+            </p>
+            {isShowingSearchResults && (
+              <Button variant="ghost" size="sm" onClick={handleBackToLibrary} className="text-sm">
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                Back
+              </Button>
+            )}
+          </div>
           <div className="space-y-2">
             {renderSongList()}
           </div>
@@ -371,3 +385,5 @@ export default function MusicPlayer({
     </div>
   );
 }
+
+    

@@ -107,8 +107,12 @@ export default function Home() {
       onDeletionComplete(updatedSongs);
       
       if (currentSong?.uri === song.uri) {
-          setChordData(null);
-          setCurrentSong(null);
+          if (updatedSongs.length > 0) {
+            handleSongSelect(updatedSongs[0]);
+          } else {
+            setChordData(null);
+            setCurrentSong(null);
+          }
       }
     } else {
        toast({
@@ -120,13 +124,6 @@ export default function Home() {
   };
 
   const handleSearch = async (query: string) => {
-    if (!query) {
-        setSearchResults([]);
-        setIsShowingSearchResults(false);
-        return;
-    };
-
-    setIsShowingSearchResults(true);
     const result = await searchSongsAction(query, arrangementStyle);
     
     if (result.success && result.data) {
@@ -200,3 +197,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
