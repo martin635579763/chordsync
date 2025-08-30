@@ -52,7 +52,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     if (!chordData?.lines) return null;
     
     // When lyrics are present
-    if (chordData.lines.some(line => line.lyrics)) {
+    if (chordData.lines.some(line => line.lyrics && line.lyrics.trim() !== '')) {
         return (
             <div className="space-y-6 animate-in fade-in duration-500">
                 {chordData.lines.map((line, lineIndex) => (

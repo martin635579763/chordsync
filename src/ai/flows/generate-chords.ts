@@ -39,29 +39,29 @@ const prompt = ai.definePrompt({
     arrangementStyle: z.string().optional(),
   })},
   output: {schema: GenerateChordsOutputSchema},
-  prompt: `You are a musical expert and can generate chord progressions and lyrics for songs.
+  prompt: `You are a musical expert and your sole task is to generate a chord progression for a given song. You MUST NOT generate lyrics.
 
-  Generate the Chinese lyrics and a chord progression for the song "{{songName}}" by "{{artistName}}".
+  Generate a chord progression for the song "{{songName}}" by "{{artistName}}".
   
   Please adhere to the following arrangement style: {{arrangementStyle}}.
   - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony.
 
-  For each line of lyrics, provide:
-  1. The lyric text in Chinese.
+  For each line of the song structure (e.g., verse, chorus), provide:
+  1. An empty string for the 'lyrics' field.
   2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
 
   Also, provide an array of all unique chords found in the song.
   
-  IMPORTANT: You must generate the entire song. Do not leave out any data.
+  IMPORTANT: You must generate chords for the entire song structure. Do not leave out any data. The lyrics field must always be an empty string.
 
-  Example for one line:
-  - lyrics: "我看見樹的翠綠"
+  Example for one line (NO LYRICS):
+  - lyrics: "" 
   - measures: [
       {
-        chords: "C"
+        chords: "C G Am F"
       }, 
       {
-        chords: "G7"
+        chords: "C G F"
       }
     ]
 
