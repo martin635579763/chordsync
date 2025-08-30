@@ -79,6 +79,10 @@ export default function MusicPlayer({
     }
   }, [initialSongs, isShowingSearchResults, setSearchResults]);
 
+  useEffect(() => {
+    setSelectedSongForPreview(null);
+  }, [arrangementStyle])
+
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -110,7 +114,7 @@ export default function MusicPlayer({
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!searchQuery) {
-        setSearchResults(initialSongs);
+        setSearchResults([]);
         setIsShowingSearchResults(false);
         return;
     };
@@ -141,7 +145,7 @@ export default function MusicPlayer({
     setSearchQuery(query);
     if (query === '') {
         setIsShowingSearchResults(false);
-        setSearchResults(initialSongs);
+        setSearchResults([]);
     }
   }
 
@@ -274,7 +278,23 @@ export default function MusicPlayer({
         <div className="flex items-center gap-1 ml-auto">
             {isShowingSearchResults && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
             
-            {(song.isGenerated || !isShowingSearchResults) && (
+            {song.isGenerated && isShowingSearchResults && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                       <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                         Update
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Regenerate Chords</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+            )}
+
+            {!isShowingSearchResults && (
+              <>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -287,21 +307,19 @@ export default function MusicPlayer({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-            )}
-
-            {!isShowingSearchResults && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={(e) => handleDeleteButtonClick(e, song)} disabled={isLoading}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete Arrangement</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/80 hover:text-destructive" onClick={(e) => handleDeleteButtonClick(e, song)} disabled={isLoading}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Arrangement</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </>
             )}
         </div>
         
