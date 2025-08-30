@@ -59,6 +59,7 @@ export default function MusicPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const isStyleChange = useRef(false);
+  const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
   
   const handleSelect = useCallback((songs: Song[]) => {
       if (isStyleChange.current && songs.length > 0) {
@@ -72,6 +73,8 @@ export default function MusicPlayer({
     setArrangementStyle(style);
     fetchInitialSongs(style).then(handleSelect);
     isStyleChange.current = true;
+    setIsShowingSearchResults(false);
+    setSearchQuery('');
   };
   
   useEffect(() => {
@@ -111,10 +114,12 @@ export default function MusicPlayer({
     event.preventDefault();
     if (!searchQuery) {
         setSearchResults(initialSongs);
+        setIsShowingSearchResults(false);
         return;
     };
 
     setIsSearching(true);
+    setIsShowingSearchResults(true);
     const result = await searchSongs(searchQuery, arrangementStyle);
     setIsSearching(false);
 
@@ -138,13 +143,8 @@ export default function MusicPlayer({
     const query = e.target.value;
     setSearchQuery(query);
     if (query === '') {
+        setIsShowingSearchResults(false);
         setSearchResults(initialSongs);
-    } else {
-        const filtered = initialSongs.filter(song => 
-            song.name.toLowerCase().includes(query.toLowerCase()) || 
-            song.artist.toLowerCase().includes(query.toLowerCase())
-        );
-        setSearchResults(filtered);
     }
   }
 
@@ -201,6 +201,7 @@ export default function MusicPlayer({
         previewUrl: fileUrl,
       };
       setSearchResults([fileSong, ...searchResults.filter(s => !s.uri.startsWith('local:'))]);
+      setIsShowingSearchResults(true);
       handleDoubleClick(fileSong);
     }
   };
@@ -244,6 +245,8 @@ export default function MusicPlayer({
   }
 
   const renderSongList = () => {
+    const songList = isShowingSearchResults ? searchResults : initialSongs;
+
     if (isFetchingInitial || isSearching) {
       return (
           <div className="flex justify-center items-center py-4">
@@ -252,16 +255,15 @@ export default function MusicPlayer({
       );
     }
 
-    if (searchResults.length === 0 && searchQuery !== '') {
+    if (songList.length === 0 && isShowingSearchResults) {
       return (
           <div className="text-center py-4 text-muted-foreground">
-              <p>No songs found for "{searchQuery}".</p>
-              <p>Click search to look on Spotify.</p>
+              <p>No songs found for "{searchQuery}" on Spotify.</p>
           </div>
       );
     }
     
-    if (searchResults.length === 0) {
+    if (songList.length === 0 && !isShowingSearchResults) {
       return (
           <div className="text-center py-4 text-muted-foreground">
               <p>No generated songs for this style. Try a search!</p>
@@ -269,7 +271,7 @@ export default function MusicPlayer({
       );
     }
 
-    return searchResults.map((song) => (
+    return songList.map((song) => (
       <div
         key={song.uri}
         role="button"
@@ -288,8 +290,9 @@ export default function MusicPlayer({
         </div>
         
         <div className="flex items-center gap-1 ml-auto">
-            {searchQuery && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
-            {song.isGenerated && (
+            {isShowingSearchResults && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
+            
+            {(song.isGenerated || !isShowingSearchResults) && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -303,7 +306,8 @@ export default function MusicPlayer({
                   </Tooltip>
                 </TooltipProvider>
             )}
-            {!searchQuery && (
+
+            {!isShowingSearchResults && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -335,7 +339,7 @@ export default function MusicPlayer({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Filter local list or search Spotify..."
+              placeholder="Search Spotify..."
               className="pl-10"
               value={searchQuery}
               onChange={handleSearchInputChange}
@@ -361,7 +365,7 @@ export default function MusicPlayer({
         </div>
 
         <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
-          <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> {searchQuery ? 'Search Results' : 'Generated Library'}</p>
+          <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> {isShowingSearchResults ? 'Search Results' : 'Generated Library'}</p>
           <div className="space-y-2">
             {renderSongList()}
           </div>
