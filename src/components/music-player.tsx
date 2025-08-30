@@ -58,21 +58,11 @@ export default function MusicPlayer({
   const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
-  const isStyleChange = useRef(false);
   const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
   
-  const handleSelect = useCallback((songs: Song[]) => {
-      if (isStyleChange.current && songs.length > 0) {
-        handleDoubleClick(songs[0]);
-        isStyleChange.current = false;
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleArrangementChange = (style: string) => {
     setArrangementStyle(style);
-    fetchInitialSongs(style).then(handleSelect);
-    isStyleChange.current = true;
+    fetchInitialSongs(style);
     setIsShowingSearchResults(false);
     setSearchQuery('');
   };
