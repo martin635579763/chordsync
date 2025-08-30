@@ -26,15 +26,17 @@ type Song = {
 };
 
 interface MusicPlayerProps {
-  onSongSelect: (song: Omit<Song, 'previewUrl'>, arrangementStyle: string, lyrics?: string, forceNew?: boolean) => void;
-  onUpdate: (song: Song, arrangementStyle: string) => void;
-  onDelete: (song: Song, arrangementStyle: string) => void;
+  onSongSelect: (song: Omit<Song, 'previewUrl' | 'isGenerated'>, forceNew?: boolean) => void;
+  onUpdate: (song: Song) => void;
+  onDelete: (song: Song, onDeletionComplete: (updatedSongs: Song[]) => void) => void;
   isLoading: boolean;
   initialSongs: Song[];
   searchResults: Song[];
   setSearchResults: (songs: Song[]) => void;
   isFetchingInitial: boolean;
   fetchInitialSongs: (style: string) => Promise<Song[]>;
+  arrangementStyle: string;
+  setArrangementStyle: (style: string) => void;
 }
 
 export default function MusicPlayer({ 
@@ -46,15 +48,14 @@ export default function MusicPlayer({
   searchResults,
   setSearchResults,
   isFetchingInitial,
-  fetchInitialSongs
+  fetchInitialSongs,
+  arrangementStyle,
+  setArrangementStyle,
 }: MusicPlayerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [arrangementStyle, setArrangementStyle] = useState('Standard');
-  const [uploadedLyrics, setUploadedLyrics] = useState<string | undefined>();
-  const lyricsFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
@@ -71,6 +72,12 @@ export default function MusicPlayer({
     fetchInitialSongs(arrangementStyle);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isShowingSearchResults) {
+      setSearchResults(initialSongs);
+    }
+  }, [initialSongs, isShowingSearchResults, setSearchResults]);
 
 
   useEffect(() => {
@@ -162,21 +169,23 @@ export default function MusicPlayer({
   
   const handleDoubleClick = (song: Song) => {
     if (isLoading) return;
-    if (lyricsFileRef.current) lyricsFileRef.current.value = "";
-    setUploadedLyrics(undefined);
     
-    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art}, arrangementStyle, uploadedLyrics);
+    onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
     setSelectedSongForPreview(song);
   };
   
   const handleUpdateButtonClick = (e: React.MouseEvent, song: Song) => {
     e.stopPropagation(); // Prevent single/double click on the row
-    onUpdate(song, arrangementStyle);
+    onUpdate(song);
   };
   
   const handleDeleteButtonClick = (e: React.MouseEvent, song: Song) => {
     e.stopPropagation();
-    onDelete(song, arrangementStyle);
+    onDelete(song, (updatedSongs) => {
+      // This callback updates the local state after deletion is confirmed
+      setSearchResults(updatedSongs); 
+      setSelectedSongForPreview(updatedSongs[0] || null);
+    });
   };
 
   const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -196,23 +205,6 @@ export default function MusicPlayer({
     }
   };
 
-  const handleLyricsFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    const songForLyrics = selectedSongForPreview;
-
-    if (file && songForLyrics) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        setUploadedLyrics(text);
-        onSongSelect({ uri: songForLyrics.uri, name: songForLyrics.name, artist: songForLyrics.artist, art: songForLyrics.art }, arrangementStyle, text);
-        toast({ title: 'Lyrics uploaded', description: 'Generating chords for the uploaded lyrics.'})
-      };
-      reader.readAsText(file);
-    } else if (!songForLyrics) {
-        toast({ variant: 'destructive', title: 'No song selected', description: 'Please select a song before uploading lyrics.'});
-    }
-  };
   
   const handlePlayPause = () => {
     const audio = audioRef.current;
@@ -237,7 +229,7 @@ export default function MusicPlayer({
   const renderSongList = () => {
     const songList = isShowingSearchResults ? searchResults : initialSongs;
 
-    if (isFetchingInitial || isSearching) {
+    if (isFetchingInitial || (isSearching && isShowingSearchResults)) {
       return (
           <div className="flex justify-center items-center py-4">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -365,16 +357,11 @@ export default function MusicPlayer({
 
         <div>
            <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> Local Files</p>
-           <div className="grid grid-cols-2 gap-2">
+           <div className="grid grid-cols-1 gap-2">
                 <Input type="file" ref={audioFileRef} onChange={handleAudioFileChange} className="hidden" accept=".mp3,.wav" />
                 <Button variant="outline" className="w-full" onClick={() => audioFileRef.current?.click()} disabled={isLoading}>
                     <Upload className="mr-2 h-4 w-4" />
                     Upload MP3
-                </Button>
-                <Input type="file" ref={lyricsFileRef} onChange={handleLyricsFileChange} className="hidden" accept=".txt" />
-                <Button variant="outline" className="w-full" onClick={() => lyricsFileRef.current?.click()} disabled={!selectedSongForPreview || isLoading}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Lyrics (.txt)
                 </Button>
            </div>
         </div>

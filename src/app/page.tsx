@@ -29,13 +29,14 @@ export default function Home() {
   const [initialSongs, setInitialSongs] = useState<Song[]>([]);
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
+  const [arrangementStyle, setArrangementStyle] = useState('Standard');
 
   const fetchSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
     const result = await getInitialSongs(style);
     if (result.success && result.data) {
       setInitialSongs(result.data);
-      setSearchResults(result.data);
+      // Don't override search results if there's a query
     } else {
       toast({
         variant: 'destructive',
@@ -43,14 +44,13 @@ export default function Home() {
         description: result.error,
       });
       setInitialSongs([]);
-      setSearchResults([]);
     }
     setIsFetchingInitial(false);
     return result.data || [];
   }, [toast]);
 
 
-  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, arrangementStyle: string, lyrics?: string, forceNew: boolean = false) => {
+  const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, forceNew: boolean = false) => {
     const isNewSongRequest = !currentSong || song.uri !== currentSong.uri || !chordData || forceNew;
     
     setIsLoading(true);
@@ -59,14 +59,15 @@ export default function Home() {
     }
     setCurrentSong({ name: song.name, artist: song.artist, art: song.art, uri: song.uri });
     
+    // Slight delay to make the loading state feel more responsive
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const result = await getChords({ songUri: song.uri, arrangementStyle, lyrics }, forceNew);
+    const result = await getChords({ songUri: song.uri, arrangementStyle }, forceNew);
     setIsLoading(false);
 
     if (result.success && result.data) {
       setChordData(result.data);
-      if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
+       if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
          fetchSongs(arrangementStyle);
       }
     } else {
@@ -78,21 +79,27 @@ export default function Home() {
     }
   };
 
-  const handleUpdate = (song: Song, arrangementStyle: string) => {
-    handleSongSelect(song, arrangementStyle, undefined, true);
+  const handleUpdate = (song: Song) => {
+    handleSongSelect(song, true);
   };
   
-  const handleDelete = async (song: Song, arrangementStyle: string) => {
+  const handleDelete = async (song: Song, onDeletionComplete: (updatedSongs: Song[]) => void) => {
     const result = await deleteChords(song.uri, arrangementStyle);
     if (result.success) {
       toast({
         title: 'Deleted',
         description: `Removed "${song.name}" from your generated list.`
       });
-      fetchSongs(arrangementStyle);
+      const updatedSongs = await fetchSongs(arrangementStyle);
+      onDeletionComplete(updatedSongs);
+      
       if (currentSong?.uri === song.uri) {
-        setChordData(null);
-        setCurrentSong(null);
+        if (updatedSongs.length > 0) {
+          handleSongSelect(updatedSongs[0]);
+        } else {
+          setChordData(null);
+          setCurrentSong(null);
+        }
       }
     } else {
        toast({
@@ -125,6 +132,8 @@ export default function Home() {
               setSearchResults={setSearchResults}
               isFetchingInitial={isFetchingInitial}
               fetchInitialSongs={fetchSongs}
+              arrangementStyle={arrangementStyle}
+              setArrangementStyle={setArrangementStyle}
             />
           </CardContent>
         </Card>
