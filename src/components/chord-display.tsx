@@ -129,7 +129,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       <div 
         ref={scrollContainerRef}
         className="flex flex-nowrap items-center gap-x-2 text-lg overflow-x-auto p-4 rounded-lg bg-background/50 animate-in fade-in duration-500"
-        style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {allMeasures.map((measure) => {
            const isActive = activeMeasureKey === measure.key;
@@ -244,5 +244,3 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     </div>
   );
 }
-
-    
