@@ -107,12 +107,8 @@ export default function Home() {
       onDeletionComplete(updatedSongs);
       
       if (currentSong?.uri === song.uri) {
-          if (updatedSongs.length > 0) {
-            handleSongSelect(updatedSongs[0]);
-          } else {
-            setChordData(null);
-            setCurrentSong(null);
-          }
+        setChordData(null);
+        setCurrentSong(null);
       }
     } else {
        toast({
