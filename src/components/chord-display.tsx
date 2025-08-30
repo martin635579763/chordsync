@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -22,18 +22,29 @@ interface ChordDisplayProps {
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [isFetchingVideo, setIsFetchingVideo] = useState(false);
-  const [activeMeasure, setActiveMeasure] = useState<{ line: number; measure: number } | null>(null);
+  const [activeMeasureKey, setActiveMeasureKey] = useState<string | null>(null);
   const [player, setPlayer] = useState<any>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const measureRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const measureRefs = useRef<Map<string, HTMLSpanElement | null>>(new Map());
   const { toast } = useToast();
+
+  const allMeasures = useMemo(() => {
+    if (!chordData?.lines) return [];
+    return chordData.lines.flatMap((line, lineIndex) => 
+      line.measures.map((measure, measureIndex) => ({
+        ...measure,
+        key: `${lineIndex}-${measureIndex}`
+      }))
+    );
+  }, [chordData]);
+
 
   useEffect(() => {
     if (currentSong && !isLoading) {
       const fetchVideo = async () => {
         setIsFetchingVideo(true);
         setVideoId(null);
-        setActiveMeasure(null);
+        setActiveMeasureKey(null);
         const result = await getYouTubeVideoId(currentSong.name, currentSong.artist);
         if (result.success && result.videoId) {
           setVideoId(result.videoId);
@@ -49,118 +60,101 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       fetchVideo();
     } else {
         setVideoId(null);
-        setActiveMeasure(null);
+        setActiveMeasureKey(null);
     }
   }, [currentSong, isLoading, toast]);
 
   useEffect(() => {
-    if (!player || !chordData?.lines) return;
+    if (!player || !allMeasures.length) return;
 
     const interval = setInterval(async () => {
       const currentTime = await player.getCurrentTime();
-      if (!chordData?.lines) return;
+      if (!allMeasures.length) return;
       
-      let newActiveMeasure: { line: number, measure: number } | null = null;
-      let lastMeasure: { line: number, measure: number } | null = null;
-
-      for (let lineIndex = 0; lineIndex < chordData.lines.length; lineIndex++) {
-        const line = chordData.lines[lineIndex];
-        for (let measureIndex = 0; measureIndex < line.measures.length; measureIndex++) {
-            const measure = line.measures[measureIndex];
-             if (currentTime >= measure.startTime) {
-               lastMeasure = { line: lineIndex, measure: measureIndex };
-             } else {
-                newActiveMeasure = lastMeasure;
-                // Break loops once we've found the spot
-                lineIndex = chordData.lines.length;
-                measureIndex = line.measures.length;
-             }
+      let newActiveMeasureKey: string | null = null;
+      let lastMeasureKey: string | null = null;
+      
+      for (const measure of allMeasures) {
+        if (currentTime >= measure.startTime) {
+          lastMeasureKey = measure.key;
+        } else {
+          newActiveMeasureKey = lastMeasureKey;
+          break; // Exit loop once we are past the current time
         }
       }
-      
+
       // If the loop finishes, it means we are in the last measure
-      if (!newActiveMeasure) {
-        newActiveMeasure = lastMeasure;
+      if (newActiveMeasureKey === null) {
+        newActiveMeasureKey = lastMeasureKey;
       }
 
 
-      if (newActiveMeasure && (newActiveMeasure.line !== activeMeasure?.line || newActiveMeasure.measure !== activeMeasure?.measure)) {
-        setActiveMeasure(newActiveMeasure);
+      if (newActiveMeasureKey && newActiveMeasureKey !== activeMeasureKey) {
+        setActiveMeasureKey(newActiveMeasureKey);
       }
     }, 250);
 
     return () => clearInterval(interval);
 
-  }, [player, chordData, activeMeasure]);
+  }, [player, allMeasures, activeMeasureKey]);
 
    useEffect(() => {
-    if (activeMeasure) {
-      const key = `${activeMeasure.line}-${activeMeasure.measure}`;
-      const measureElement = measureRefs.current.get(key);
+    if (activeMeasureKey) {
+      const measureElement = measureRefs.current.get(activeMeasureKey);
       if (measureElement && scrollContainerRef.current) {
-        const lineElement = measureElement.parentElement?.parentElement; // The line wrapper
         const scrollContainer = scrollContainerRef.current;
-        if (!lineElement) return;
-
-        // Check if the line is already in view
-        const lineRect = lineElement.getBoundingClientRect();
         const containerRect = scrollContainer.getBoundingClientRect();
-        
-        const isVisible = lineRect.top >= containerRect.top && lineRect.bottom <= containerRect.bottom;
+        const elementRect = measureElement.getBoundingClientRect();
 
+        const isVisible = 
+            elementRect.left >= containerRect.left &&
+            elementRect.right <= containerRect.right;
+        
         if (!isVisible) {
-          lineElement.scrollIntoView({
+          measureElement.scrollIntoView({
             behavior: 'smooth',
-            block: 'center',
+            inline: 'center',
+            block: 'nearest',
           });
         }
       }
     }
-  }, [activeMeasure]);
+  }, [activeMeasureKey]);
 
 
-  const renderLyricsAndChords = () => {
-    if (!chordData?.lines) return null;
+  const renderChords = () => {
+    if (!allMeasures.length) return null;
     
     return (
-      <div className="space-y-4 animate-in fade-in duration-500">
-        {chordData.lines.map((line, lineIndex) => (
-          <div key={lineIndex} className="p-2 rounded-lg transition-all duration-300">
-            <div className="flex flex-wrap items-end gap-x-2 text-lg min-h-[1em]">
-              {line.measures.map((measure, measureIndex) => {
-                 const key = `${lineIndex}-${measureIndex}`;
-                 const isActive = activeMeasure?.line === lineIndex && activeMeasure?.measure === measureIndex;
-                 return (
-                    <span 
-                        key={key}
-                        ref={el => measureRefs.current.set(key, el)}
-                        className={`font-code font-bold p-2 rounded-md transition-all duration-150 ${
-                            isActive
-                                ? 'bg-primary text-primary-foreground scale-110'
-                                : 'bg-primary/10 text-primary'
-                        }`}
-                    >
-                      {measure.chords || ' '}
-                    </span>
-                 )
-              })}
-            </div>
-          </div>
-        ))}
+      <div 
+        ref={scrollContainerRef}
+        className="flex flex-nowrap items-center gap-x-2 text-lg overflow-x-auto p-4 rounded-lg bg-background/50 animate-in fade-in duration-500"
+        style={{ scrollbarWidth: 'none', '-ms-overflow-style': 'none' }}
+      >
+        {allMeasures.map((measure) => {
+           const isActive = activeMeasureKey === measure.key;
+           return (
+              <span 
+                  key={measure.key}
+                  ref={el => measureRefs.current.set(measure.key, el)}
+                  className={`font-code font-bold p-2 rounded-md transition-all duration-150 shrink-0 ${
+                      isActive
+                          ? 'bg-primary text-primary-foreground scale-110'
+                          : 'bg-primary/10 text-primary'
+                  }`}
+              >
+                {measure.chords || ' '}
+              </span>
+           )
+        })}
       </div>
     );
   }
 
   const renderSkeletons = () => (
-    <div className="space-y-6">
+    <div className="flex items-center gap-x-2 p-4">
        {[...Array(8)].map((_, i) => (
-         <div key={i} className="space-y-2">
-            <div className="flex gap-2">
-                <Skeleton className="h-8 w-1/4 bg-muted/50" />
-                <Skeleton className="h-8 w-1/4 bg-muted/50" />
-                <Skeleton className="h-8 w-1/4 bg-muted/50" />
-            </div>
-        </div>
+         <Skeleton key={i} className="h-12 w-20 bg-muted/50 shrink-0" />
       ))}
     </div>
   );
@@ -202,8 +196,9 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
               className="w-full h-full"
               onReady={(event) => setPlayer(event.target)}
               onPlay={() => {
-                if (!activeMeasure) {
-                  setActiveMeasure({ line: 0, measure: 0 });
+                if (!activeMeasureKey) {
+                   const firstKey = allMeasures[0]?.key;
+                   if (firstKey) setActiveMeasureKey(firstKey);
                 }
               }}
             />
@@ -237,11 +232,11 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         </div>
       )}
       
-      <div className="flex-1 overflow-auto pr-2 -mr-2" ref={scrollContainerRef}>
+      <div className="flex-1 overflow-hidden">
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (
-          renderLyricsAndChords()
+          renderChords()
         ) : (
           !currentSong && renderEmptyState()
         )}
@@ -249,3 +244,5 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     </div>
   );
 }
+
+    
