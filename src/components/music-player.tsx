@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, FormEvent, useEffect, ChangeEvent, useCallback } from 'react';
+import { useState, useRef, FormEvent, useEffect, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,7 +27,7 @@ type Song = {
 interface MusicPlayerProps {
   onSongSelect: (song: Omit<Song, 'previewUrl' | 'isGenerated'>, forceNew?: boolean) => void;
   onUpdate: (song: Song) => void;
-  onDelete: (song: Song, onDeletionComplete: (updatedSongs: Song[]) => void) => void;
+  onDelete: (song: Song) => void;
   onSearch: (query: string) => void;
   isLoading: boolean;
   initialSongs: Song[];
@@ -39,6 +39,8 @@ interface MusicPlayerProps {
   setSearchQuery: (query: string) => void;
   isShowingSearchResults: boolean;
   setIsShowingSearchResults: (isShowing: boolean) => void;
+  selectedSongForPreview: Song | null;
+  setSelectedSongForPreview: (song: Song | null) => void;
 }
 
 export default function MusicPlayer({ 
@@ -55,18 +57,21 @@ export default function MusicPlayer({
   searchQuery,
   setSearchQuery,
   isShowingSearchResults,
-  setIsShowingSearchResults
+  setIsShowingSearchResults,
+  selectedSongForPreview,
+  setSelectedSongForPreview
 }: MusicPlayerProps) {
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   
   useEffect(() => {
-    setSelectedSongForPreview(null);
-  }, [arrangementStyle])
+    if (arrangementStyle) {
+      setSelectedSongForPreview(null);
+    }
+  }, [arrangementStyle, setSelectedSongForPreview])
 
 
   useEffect(() => {
@@ -93,6 +98,9 @@ export default function MusicPlayer({
     if (audio && selectedSongForPreview?.previewUrl && audio.src !== selectedSongForPreview.previewUrl) {
         audio.src = selectedSongForPreview.previewUrl;
         audio.play().catch(e => console.error("Error playing audio on select:", e));
+    } else if (audio && !selectedSongForPreview) {
+      audio.pause();
+      audio.src = '';
     }
   }, [selectedSongForPreview]);
 
@@ -149,10 +157,7 @@ export default function MusicPlayer({
   
   const handleDeleteButtonClick = (e: React.MouseEvent, song: Song) => {
     e.stopPropagation();
-    onDelete(song, (updatedSongs) => {
-      // This callback updates the local state after deletion is confirmed
-      // Handled at page level now
-    });
+    onDelete(song);
   };
 
   const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -239,7 +244,7 @@ export default function MusicPlayer({
         <div className="flex items-center gap-1 ml-auto">
             {isShowingSearchResults && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
             
-            {isShowingSearchResults && song.isGenerated && (
+            {(isShowingSearchResults && song.isGenerated) && (
                 <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
                   Update
                 </Button>
@@ -247,18 +252,9 @@ export default function MusicPlayer({
 
             {!isShowingSearchResults && (
               <>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
-                        <RefreshCw className={`w-4 h-4 ${isLoading && selectedSongForPreview?.uri === song.uri ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Regenerate Chords</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                    Update
+                </Button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -385,5 +381,3 @@ export default function MusicPlayer({
     </div>
   );
 }
-
-    

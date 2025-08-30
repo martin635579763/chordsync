@@ -32,6 +32,7 @@ export default function Home() {
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
+  const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
 
   const fetchSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
@@ -54,6 +55,7 @@ export default function Home() {
     fetchSongs(arrangementStyle);
     setChordData(null);
     setCurrentSong(null);
+    setSelectedSongForPreview(null);
   }, [arrangementStyle, fetchSongs]);
 
 
@@ -96,19 +98,21 @@ export default function Home() {
     handleSongSelect(song, true);
   };
   
-  const handleDelete = async (song: Song, onDeletionComplete: (updatedSongs: Song[]) => void) => {
+  const handleDelete = async (song: Song) => {
     const result = await deleteChords(song.uri, arrangementStyle);
     if (result.success) {
       toast({
         title: 'Deleted',
         description: `Removed "${song.name}" from your generated list.`
       });
-      const updatedSongs = await fetchSongs(arrangementStyle);
-      onDeletionComplete(updatedSongs);
+      fetchSongs(arrangementStyle);
       
       if (currentSong?.uri === song.uri) {
         setChordData(null);
         setCurrentSong(null);
+      }
+      if (selectedSongForPreview?.uri === song.uri) {
+        setSelectedSongForPreview(null);
       }
     } else {
        toast({
@@ -164,6 +168,8 @@ export default function Home() {
               setSearchQuery={setSearchQuery}
               isShowingSearchResults={isShowingSearchResults}
               setIsShowingSearchResults={setIsShowingSearchResults}
+              selectedSongForPreview={selectedSongForPreview}
+              setSelectedSongForPreview={setSelectedSongForPreview}
             />
           </CardContent>
         </Card>
@@ -193,5 +199,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
