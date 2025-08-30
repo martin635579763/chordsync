@@ -98,7 +98,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       const key = `${activeMeasure.line}-${activeMeasure.measure}`;
       const measureElement = measureRefs.current.get(key);
       if (measureElement && scrollContainerRef.current) {
-        const lineElement = measureElement.parentElement;
+        const lineElement = measureElement.parentElement?.parentElement; // The line wrapper
         const scrollContainer = scrollContainerRef.current;
         if (!lineElement) return;
 
@@ -123,10 +123,10 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     if (!chordData?.lines) return null;
     
     return (
-      <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-4 animate-in fade-in duration-500">
         {chordData.lines.map((line, lineIndex) => (
           <div key={lineIndex} className="p-2 rounded-lg transition-all duration-300">
-            <div className="flex flex-wrap items-end gap-x-2 text-sm min-h-[1em]">
+            <div className="flex flex-wrap items-end gap-x-2 text-lg min-h-[1em]">
               {line.measures.map((measure, measureIndex) => {
                  const key = `${lineIndex}-${measureIndex}`;
                  const isActive = activeMeasure?.line === lineIndex && activeMeasure?.measure === measureIndex;
@@ -134,7 +134,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
                     <span 
                         key={key}
                         ref={el => measureRefs.current.set(key, el)}
-                        className={`font-code font-bold p-1 rounded-md transition-all duration-150 ${
+                        className={`font-code font-bold p-2 rounded-md transition-all duration-150 ${
                             isActive
                                 ? 'bg-primary text-primary-foreground scale-110'
                                 : 'bg-primary/10 text-primary'
@@ -145,7 +145,6 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
                  )
               })}
             </div>
-            <p className="text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
           </div>
         ))}
       </div>
@@ -157,10 +156,10 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
        {[...Array(8)].map((_, i) => (
          <div key={i} className="space-y-2">
             <div className="flex gap-2">
-                <Skeleton className="h-5 w-1/4 bg-muted/50" />
-                <Skeleton className="h-5 w-1/4 bg-muted/50" />
+                <Skeleton className="h-8 w-1/4 bg-muted/50" />
+                <Skeleton className="h-8 w-1/4 bg-muted/50" />
+                <Skeleton className="h-8 w-1/4 bg-muted/50" />
             </div>
-            <Skeleton className="h-6 w-full bg-muted/50 mt-2" />
         </div>
       ))}
     </div>

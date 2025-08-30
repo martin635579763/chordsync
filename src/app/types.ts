@@ -3,13 +3,12 @@ import { z } from 'zod';
 // generate-chords.ts
 export const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
-    lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
         chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
         startTime: z.number().describe('The start time of this measure in seconds.'),
     })).describe('The measures for this line.'),
     startTime: z.number().describe('The start time of this line in seconds.'),
-  })).describe('The lyrics and chords for the song, line by line.'),
+  })).describe('The chords for the song, line by line.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });
 export type GenerateChordsOutput = z.infer<typeof GenerateChordsOutputSchema>;

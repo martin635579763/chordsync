@@ -18,16 +18,14 @@ const GenerateChordsInputSchema = z.object({
   arrangementStyle: z.string().optional().describe('The desired arrangement style for the chords.'),
 });
 
-// THIS is the part that was out of sync. It now matches types.ts
 const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
-    lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
       chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
       startTime: z.number().describe('The start time of this measure in seconds from the beginning of the song.'),
     })).describe('The measures of chords for this line, with a timestamp for each measure.'),
     startTime: z.number().describe('The start time of this line in seconds from the beginning of the song.'),
-  })).describe('The lyrics and chords for the song, line by line, with measures and timestamps.'),
+  })).describe('The chords for the song, line by line, with measures and timestamps.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });
 
@@ -44,17 +42,16 @@ const prompt = ai.definePrompt({
     arrangementStyle: z.string().optional(),
   })},
   output: {schema: GenerateChordsOutputSchema},
-  prompt: `You are a musical expert and your task is to generate a chord progression with REAL lyrics, measures, and precise timestamps for a given song.
+  prompt: `You are a musical expert and your task is to generate a chord progression with measures and precise timestamps for a given song. DO NOT generate lyrics.
 
-  Generate the chords, lyrics, and start times for "{{songName}}" by "{{artistName}}".
+  Generate the chords and start times for "{{songName}}" by "{{artistName}}".
   
   Please adhere to the following arrangement style: {{arrangementStyle}}.
   - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines, or add 7ths, 9ths, or other extensions.
 
   For each line of the song, provide:
-  1. The lyrics for that line.
-  2. The exact start time of that line in seconds (as a number), named 'startTime'.
-  3. A 'measures' array containing the chords for that line, broken down into measures.
+  1. The exact start time of that line in seconds (as a number), named 'startTime'.
+  2. A 'measures' array containing the chords for that line, broken down into measures.
   
   For EACH measure in the 'measures' array, you MUST provide:
   1. The chords for that measure (e.g., "C", "G Am").
@@ -62,11 +59,10 @@ const prompt = ai.definePrompt({
 
   Also, provide an array of all unique chords found in the song.
   
-  IMPORTANT: You must generate chords for the entire song structure using the REAL LYRICS. Do not leave out any data. The lyrics, measures, and all timestamps are crucial.
+  IMPORTANT: You must generate chords for the entire song structure. The measures and all timestamps are crucial.
 
   Example for one line:
   {
-    "lyrics": "I found a love for me",
     "startTime": 15.5,
     "measures": [ 
       { "chords": "C", "startTime": 15.5 }, 
@@ -125,4 +121,3 @@ const generateChordsFlow = ai.defineFlow(
     return output!;
   }
 );
-
