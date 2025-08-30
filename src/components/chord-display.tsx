@@ -60,7 +60,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       const currentTime = await player.getCurrentTime();
       if (!chordData?.lines) return;
       
-      let currentMeasure: { line: number, measure: number } | null = null;
+      let newActiveMeasure: { line: number, measure: number } | null = null;
       let lastMeasure: { line: number, measure: number } | null = null;
 
       for (let lineIndex = 0; lineIndex < chordData.lines.length; lineIndex++) {
@@ -69,13 +69,23 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
             const measure = line.measures[measureIndex];
              if (currentTime >= measure.startTime) {
                lastMeasure = { line: lineIndex, measure: measureIndex };
+             } else {
+                newActiveMeasure = lastMeasure;
+                // Break loops once we've found the spot
+                lineIndex = chordData.lines.length;
+                measureIndex = line.measures.length;
              }
         }
       }
-      currentMeasure = lastMeasure;
+      
+      // If the loop finishes, it means we are in the last measure
+      if (!newActiveMeasure) {
+        newActiveMeasure = lastMeasure;
+      }
 
-      if (currentMeasure && (currentMeasure.line !== activeMeasure?.line || currentMeasure.measure !== activeMeasure?.measure)) {
-        setActiveMeasure(currentMeasure);
+
+      if (newActiveMeasure && (newActiveMeasure.line !== activeMeasure?.line || newActiveMeasure.measure !== activeMeasure?.measure)) {
+        setActiveMeasure(newActiveMeasure);
       }
     }, 250);
 
