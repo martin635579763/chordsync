@@ -96,8 +96,12 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
             ref={el => lineRefs.current[lineIndex] = el}
             className={`transition-all duration-300 p-2 rounded-lg ${activeLine === lineIndex ? 'bg-primary/20 scale-105' : ''}`}
           >
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <span className="text-primary font-bold font-code text-sm min-h-[1em]">{line.chords || ' '}</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-primary font-bold font-code text-sm min-h-[1em]">
+              {line.measures.map((measure, measureIndex) => (
+                <span key={measureIndex} className="pr-4 border-r-2 last:border-r-0 border-primary/20">
+                  {measure.chords || ' '}
+                </span>
+              ))}
             </div>
             <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
           </div>
