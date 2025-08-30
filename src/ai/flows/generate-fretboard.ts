@@ -14,7 +14,7 @@ import { z } from 'genkit';
 const GenerateFretboardInputSchema = z.object({
   chord: z.string().describe('The name of the chord, e.g., "C", "G7", "F#m", "C/G".'),
 });
-export type GenerateFretboardInput = z.infer<typeof GenerateFretboardInputSchema>;
+type GenerateFretboardInput = z.infer<typeof GenerateFretboardInputSchema>;
 
 const GenerateFretboardOutputSchema = z.object({
   frets: z.array(z.number()).length(6).describe('An array of 6 numbers representing the fret for each string (EADGBe). -1 for a muted string, 0 for an open string.'),

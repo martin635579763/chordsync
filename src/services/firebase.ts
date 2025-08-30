@@ -5,7 +5,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
-import type { GenerateAccompanimentTextOutput } from '@/ai/flows/generate-accompaniment-text';
+import type { GenerateAccompanimentTextOutput } from '@/app/actions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

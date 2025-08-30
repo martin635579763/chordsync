@@ -12,25 +12,21 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { GenerateChordsOutput } from './generate-chords';
 
-export const GenerateAccompanimentTextInputSchema = z.object({
+const GenerateAccompanimentTextInputSchema = z.object({
   songName: z.string().describe('The name of the song.'),
   artistName: z.string().describe('The name of the artist.'),
   chords: z.custom<GenerateChordsOutput>().describe('The chord progression and lyrics object.'),
   arrangementStyle: z.string().optional().describe('The desired arrangement style.'),
 });
-export type GenerateAccompanimentTextInput = z.infer<typeof GenerateAccompanimentTextInputSchema>;
+type GenerateAccompanimentTextInput = z.infer<typeof GenerateAccompanimentTextInputSchema>;
 
-export const GenerateAccompanimentTextOutputSchema = z.object({
+const GenerateAccompanimentTextOutputSchema = z.object({
   playingStyleSuggestion: z.string().describe("A suggestion for the overall playing style, including dynamics and feel."),
   strummingPattern: z.string().describe("A suggested strumming pattern in a 'D DU UDU' format, where D=Down, U=Up. Include a simple text-based diagram if possible."),
   advancedTechniques: z.string().optional().describe("Suggestions for advanced techniques like palm muting, hammer-ons, or specific picking patterns for different sections (verse, chorus)."),
 });
-export type GenerateAccompanimentTextOutput = z.infer<typeof GenerateAccompanimentTextOutputSchema>;
+type GenerateAccompanimentTextOutput = z.infer<typeof GenerateAccompanimentTextOutputSchema>;
 
-
-export async function generateAccompanimentText(input: GenerateAccompanimentTextInput): Promise<GenerateAccompanimentTextOutput> {
-  return generateAccompanimentTextFlow(input);
-}
 
 const prompt = ai.definePrompt({
   name: 'generateAccompanimentTextPrompt',
@@ -78,3 +74,8 @@ const generateAccompanimentTextFlow = ai.defineFlow(
     return output!;
   }
 );
+
+
+export async function generateAccompanimentText(input: GenerateAccompanimentTextInput): Promise<GenerateAccompanimentTextOutput> {
+  return generateAccompanimentTextFlow(input);
+}
