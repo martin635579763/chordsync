@@ -1,18 +1,56 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Guitar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Guitar, Wand2, Loader2 } from 'lucide-react';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import type { GenerateAccompanimentTextOutput } from '@/ai/flows/generate-accompaniment-text';
 import FretboardDiagram from '@/components/fretboard-diagram';
+import { getAccompanimentText } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from './ui/badge';
 
 
 interface SimpleChordsDisplayProps {
   chordData: GenerateChordsOutput | null;
   isLoading: boolean;
+  currentSong: { name: string; artist: string; } | null;
+  arrangementStyle: string;
 }
 
-export default function SimpleChordsDisplay({ chordData, isLoading }: SimpleChordsDisplayProps) {
+export default function SimpleChordsDisplay({ chordData, isLoading, currentSong, arrangementStyle }: SimpleChordsDisplayProps) {
+  const [suggestion, setSuggestion] = useState<GenerateAccompanimentTextOutput | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const { toast } = useToast();
+
+  const handleGetSuggestion = async () => {
+    if (!chordData || !currentSong) return;
+    
+    setIsSuggesting(true);
+    setSuggestion(null);
+
+    const result = await getAccompanimentText({
+        songName: currentSong.name,
+        artistName: currentSong.artist,
+        chords: chordData,
+        arrangementStyle: arrangementStyle,
+    });
+    
+    setIsSuggesting(false);
+
+    if (result.success && result.data) {
+        setSuggestion(result.data);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Suggestion Failed",
+            description: result.error || "Could not generate playing suggestions."
+        })
+    }
+  }
 
   const renderSimpleChords = () => {
     if (!chordData?.uniqueChords) return null;
@@ -48,6 +86,42 @@ export default function SimpleChordsDisplay({ chordData, isLoading }: SimpleChor
       </div>
   )
 
+  const renderSuggestion = () => {
+    if (isSuggesting) {
+        return (
+            <div className="space-y-4">
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-6 w-1/3 mt-2" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+        )
+    }
+
+    if (!suggestion) return null;
+
+    return (
+      <Card className="bg-transparent border-0 shadow-none animate-in fade-in duration-500">
+        <CardContent className="p-0 space-y-4">
+            <div>
+                <h4 className="font-semibold text-primary mb-1">Playing Style</h4>
+                <p className="text-sm text-muted-foreground">{suggestion.playingStyleSuggestion}</p>
+            </div>
+             <div>
+                <h4 className="font-semibold text-primary mb-1">Strumming Pattern</h4>
+                <Badge variant="secondary" className="font-mono text-base">{suggestion.strummingPattern}</Badge>
+            </div>
+            {suggestion.advancedTechniques && (
+                 <div>
+                    <h4 className="font-semibold text-primary mb-1">Advanced Techniques</h4>
+                    <p className="text-sm text-muted-foreground">{suggestion.advancedTechniques}</p>
+                </div>
+            )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <h2 className="text-2xl font-headline font-semibold mb-4">Chord Cheatsheet</h2>
@@ -55,7 +129,17 @@ export default function SimpleChordsDisplay({ chordData, isLoading }: SimpleChor
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (
-          renderSimpleChords()
+          <>
+            <div className="mb-6">
+                <Button onClick={handleGetSuggestion} disabled={isSuggesting || isLoading} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                    {isSuggesting ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                    Get Playing Suggestions
+                </Button>
+            </div>
+
+            {suggestion || isSuggesting ? renderSuggestion() : renderSimpleChords()}
+
+          </>
         ) : (
           renderEmptyState()
         )}

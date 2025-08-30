@@ -5,6 +5,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import type { GenerateAccompanimentTextOutput } from '@/ai/flows/generate-accompaniment-text';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -27,6 +28,8 @@ const db = getFirestore(app);
 
 const fretboardCacheCollection = 'fretboardCache';
 const chordCacheCollection = 'chordCache';
+const accompanimentCacheCollection = 'accompanimentCache';
+
 
 // Firestore document IDs cannot contain slashes or be empty.
 function sanitizeDocId(id: string): string {
@@ -143,6 +146,32 @@ export async function getRecentChords(count: number): Promise<{ songUri: string,
         return [];
     }
 }
+
+export async function getCachedAccompanimentText(cacheKey: string): Promise<GenerateAccompanimentTextOutput | null> {
+  const docId = sanitizeDocId(cacheKey);
+  try {
+    const docRef = doc(db, accompanimentCacheCollection, docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as GenerateAccompanimentTextOutput;
+    }
+    return null;
+  } catch (error) {
+    console.error(`[Firestore] Error getting cached accompaniment text for ${docId}:`, error);
+    return null;
+  }
+}
+
+export async function setCachedAccompanimentText(cacheKey: string, data: GenerateAccompanimentTextOutput): Promise<void> {
+  const docId = sanitizeDocId(cacheKey);
+  try {
+    const docRef = doc(db, accompanimentCacheCollection, docId);
+    await setDoc(docRef, data);
+  } catch (error) {
+    console.error(`[Firestore] Error setting cached accompaniment text for ${docId}:`, error);
+  }
+}
+
 
 // Check if Firestore is connected by trying to read a document.
 export async function checkFirestoreConnection() {

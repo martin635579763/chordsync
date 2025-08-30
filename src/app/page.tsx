@@ -188,6 +188,8 @@ export default function Home() {
               <SimpleChordsDisplay
                 chordData={chordData}
                 isLoading={isLoading}
+                currentSong={currentSong}
+                arrangementStyle={arrangementStyle}
               />
             </CardContent>
           </Card>

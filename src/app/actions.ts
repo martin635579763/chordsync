@@ -3,13 +3,24 @@
 
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
+import { generateAccompanimentText, GenerateAccompanimentTextInput } from '@/ai/flows/generate-accompaniment-text';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
-import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists, deleteCachedChords as deleteChordsFromDb } from '@/services/firebase';
+import { 
+  getCachedFretboard, 
+  setCachedFretboard, 
+  getCachedChords, 
+  setCachedChords, 
+  getRecentChords, 
+  checkChordCacheExists, 
+  deleteCachedChords as deleteChordsFromDb,
+  getCachedAccompanimentText,
+  setCachedAccompanimentText
+} from '@/services/firebase';
 
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
   try {
-    const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}${input.lyrics ? '-lyrics' : ''}`;
+    const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}`;
     
     // 1. Check cache first, unless forcing a new generation
     if (!forceNew) {
@@ -124,5 +135,26 @@ export async function deleteChords(songUri: string, arrangementStyle: string) {
   } catch (error) {
     console.error('Error deleting chords:', error);
     return { success: false, error: 'Failed to delete chords. Please try again.' };
+  }
+}
+
+export async function getAccompanimentText(input: GenerateAccompanimentTextInput) {
+  try {
+    const cacheKey = `${input.chords.uniqueChords.join('-')}-${input.arrangementStyle}`;
+    
+    const cachedData = await getCachedAccompanimentText(cacheKey);
+    if (cachedData) {
+      return { success: true, data: cachedData };
+    }
+
+    const output = await generateAccompanimentText(input);
+    
+    await setCachedAccompanimentText(cacheKey, output);
+
+    return { success: true, data: output };
+
+  } catch (error) {
+    console.error('Error generating accompaniment text:', error);
+    return { success: false, error: 'Failed to get playing suggestions. Please try again.' };
   }
 }
