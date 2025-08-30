@@ -1,3 +1,4 @@
+
 // This is a server-side file
 'use server';
 
@@ -17,6 +18,7 @@ const GenerateChordsInputSchema = z.object({
   arrangementStyle: z.string().optional().describe('The desired arrangement style for the chords.'),
 });
 
+// THIS is the part that was out of sync. It now matches types.ts
 const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
     lyrics: z.string().describe('A line of lyrics.'),
@@ -123,3 +125,4 @@ const generateChordsFlow = ai.defineFlow(
     return output!;
   }
 );
+
