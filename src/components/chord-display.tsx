@@ -9,7 +9,6 @@ import Image from 'next/image';
 import { Music, PlayCircle, PauseCircle, Loader2 } from 'lucide-react';
 import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
 import { Button } from './ui/button';
-import { getAccompaniment } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 
 interface ChordDisplayProps {
@@ -19,87 +18,6 @@ interface ChordDisplayProps {
 }
 
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    // Reset audio state when song changes
-    setAudioSrc(null);
-    setIsPlayingAudio(false);
-    setIsGeneratingAudio(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    }
-  }, [currentSong]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onPlay = () => setIsPlayingAudio(true);
-    const onPause = () => setIsPlayingAudio(false);
-    const onEnded = () => setIsPlayingAudio(false);
-
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('ended', onEnded);
-
-    return () => {
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('ended', onEnded);
-    };
-  }, []);
-
-  const handlePlayAccompaniment = async () => {
-    if (!currentSong || !chordData) return;
-
-    if (audioSrc) {
-      // Audio is loaded, just play/pause
-      const audio = audioRef.current;
-      if (audio) {
-        if (audio.paused) {
-          audio.play().catch(console.error);
-        } else {
-          audio.pause();
-        }
-      }
-      return;
-    }
-
-    setIsGeneratingAudio(true);
-    const result = await getAccompaniment(currentSong.uri, 'Standard', chordData); // Assuming 'Standard' for now
-    setIsGeneratingAudio(false);
-
-    if (result.success && result.data?.audioDataUri) {
-      setAudioSrc(result.data.audioDataUri);
-      // The effect hook will play the audio
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Playback Failed',
-        description: result.error || 'Could not generate the song accompaniment.',
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (audioSrc && audioRef.current) {
-      audioRef.current.src = audioSrc;
-      audioRef.current.play().catch(e => {
-        console.error("Audio playback failed:", e);
-        toast({
-          variant: 'destructive',
-          title: 'Playback Error',
-          description: 'The browser could not play the generated audio.',
-        });
-      });
-    }
-  }, [audioSrc, toast]);
   
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
@@ -159,7 +77,6 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
 
   return (
     <div className="flex flex-col h-full">
-      <audio ref={audioRef} />
       {currentSong && (
         <div className="flex items-center gap-4 mb-6 p-4 rounded-lg bg-primary/10">
             <div className="relative w-16 h-16 rounded-lg shadow-md overflow-hidden shrink-0">
@@ -175,16 +92,6 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-headline font-semibold">Chord Progression</h2>
-        {chordData && (
-          <Button variant="ghost" size="icon" onClick={handlePlayAccompaniment} disabled={isGeneratingAudio}>
-            {isGeneratingAudio 
-              ? <Loader2 className="h-6 w-6 animate-spin text-accent" />
-              : isPlayingAudio
-                ? <PauseCircle className="h-6 w-6 text-accent" />
-                : <PlayCircle className="h-6 w-6 text-accent" />
-            }
-          </Button>
-        )}
       </div>
       
       <div className="flex-1 overflow-auto pr-2 -mr-2">

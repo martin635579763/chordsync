@@ -4,9 +4,7 @@
 import { generateChords, GenerateChordsInput } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
-import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists, deleteCachedChords as deleteChordsFromDb, getCachedAccompaniment, setCachedAccompaniment } from '@/services/firebase';
-import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
-import { generateAccompaniment } from '@/ai/flows/generate-accompaniment';
+import { getCachedFretboard, setCachedFretboard, getCachedChords, setCachedChords, getRecentChords, checkChordCacheExists, deleteCachedChords as deleteChordsFromDb } from '@/services/firebase';
 
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
@@ -126,26 +124,5 @@ export async function deleteChords(songUri: string, arrangementStyle: string) {
   } catch (error) {
     console.error('Error deleting chords:', error);
     return { success: false, error: 'Failed to delete chords. Please try again.' };
-  }
-}
-
-export async function getAccompaniment(songUri: string, arrangementStyle: string, chordData: GenerateChordsOutput) {
-  try {
-    const cacheKey = `${songUri}-${arrangementStyle}-accompaniment`;
-    
-    const cachedAudio = await getCachedAccompaniment(cacheKey);
-    if (cachedAudio) {
-      return { success: true, data: cachedAudio };
-    }
-    
-    const output = await generateAccompaniment({ chordData });
-
-    await setCachedAccompaniment(cacheKey, output);
-
-    return { success: true, data: output };
-  } catch (error) {
-    console.error('Error generating accompaniment:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, error: `Failed to generate accompaniment: ${errorMessage}` };
   }
 }
