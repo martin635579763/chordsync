@@ -48,6 +48,13 @@ export default function Home() {
     setIsFetchingInitial(false);
     return result.data || [];
   }, [toast]);
+  
+  useEffect(() => {
+    fetchSongs(arrangementStyle);
+    setChordData(null);
+    setCurrentSong(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrangementStyle]);
 
 
   const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, forceNew: boolean = false) => {
