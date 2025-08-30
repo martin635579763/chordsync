@@ -4,12 +4,12 @@
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Guitar, Wand2, Loader2 } from 'lucide-react';
+import { Guitar, Wand2, Loader2, BookOpen } from 'lucide-react';
 import type { GenerateChordsOutput, GenerateAccompanimentTextOutput } from '@/app/types';
 import FretboardDiagram from '@/components/fretboard-diagram';
 import { getAccompanimentText } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from './ui/badge';
 
 
@@ -23,10 +23,17 @@ interface SimpleChordsDisplayProps {
 export default function SimpleChordsDisplay({ chordData, isLoading, currentSong, arrangementStyle }: SimpleChordsDisplayProps) {
   const [suggestion, setSuggestion] = useState<GenerateAccompanimentTextOutput | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isShowingSuggestion, setIsShowingSuggestion] = useState(false);
   const { toast } = useToast();
 
   const handleGetSuggestion = async () => {
     if (!chordData || !currentSong) return;
+    
+    // If we already have a suggestion, just show it.
+    if (suggestion) {
+        setIsShowingSuggestion(true);
+        return;
+    }
     
     setIsSuggesting(true);
     setSuggestion(null);
@@ -42,6 +49,7 @@ export default function SimpleChordsDisplay({ chordData, isLoading, currentSong,
 
     if (result.success && result.data) {
         setSuggestion(result.data);
+        setIsShowingSuggestion(true);
     } else {
         toast({
             variant: "destructive",
@@ -50,6 +58,14 @@ export default function SimpleChordsDisplay({ chordData, isLoading, currentSong,
         })
     }
   }
+
+  const handleToggleButtonClick = () => {
+    if (isShowingSuggestion) {
+      setIsShowingSuggestion(false);
+    } else {
+      handleGetSuggestion();
+    }
+  };
 
   const renderSimpleChords = () => {
     if (!chordData?.uniqueChords) return null;
@@ -86,13 +102,13 @@ export default function SimpleChordsDisplay({ chordData, isLoading, currentSong,
   )
 
   const renderSuggestion = () => {
-    if (isSuggesting) {
+    if (isSuggesting && !suggestion) {
         return (
-            <div className="space-y-4">
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-6 w-1/3 mt-2" />
-                <Skeleton className="h-10 w-full" />
+            <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+                <p className="text-center text-muted-foreground">Generating creative ideas...</p>
             </div>
         )
     }
@@ -123,20 +139,23 @@ export default function SimpleChordsDisplay({ chordData, isLoading, currentSong,
 
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-2xl font-headline font-semibold mb-4">Chord Cheatsheet</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-headline font-semibold">Chord Cheatsheet</h2>
+      </div>
+
       <div className="flex-1 overflow-auto pr-2 -mr-2">
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (
           <>
             <div className="mb-6">
-                <Button onClick={handleGetSuggestion} disabled={isSuggesting || isLoading} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                    {isSuggesting ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                    Get Playing Suggestions
+                <Button onClick={handleToggleButtonClick} disabled={isSuggesting || isLoading} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                    {isSuggesting ? <Loader2 className="animate-spin" /> : (isShowingSuggestion ? <Guitar /> : <Wand2 />)}
+                    {isShowingSuggestion ? "Show Fretboards" : "Get Playing Suggestions"}
                 </Button>
             </div>
 
-            {suggestion || isSuggesting ? renderSuggestion() : renderSimpleChords()}
+            {isShowingSuggestion ? renderSuggestion() : renderSimpleChords()}
 
           </>
         ) : (
