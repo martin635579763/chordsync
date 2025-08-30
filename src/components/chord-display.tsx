@@ -6,10 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
-import { Music, PlayCircle, PauseCircle, Loader2 } from 'lucide-react';
+import { Music, PlayCircle, PauseCircle, Loader2, Youtube } from 'lucide-react';
 import type { GenerateChordsOutput } from '@/app/types';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { getYouTubeVideoId } from '@/app/actions';
+import YouTube from 'react-youtube';
 
 interface ChordDisplayProps {
   chordData: GenerateChordsOutput | null;
@@ -18,7 +20,34 @@ interface ChordDisplayProps {
 }
 
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
-  
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [isFetchingVideo, setIsFetchingVideo] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (currentSong && !isLoading) {
+      const fetchVideo = async () => {
+        setIsFetchingVideo(true);
+        setVideoId(null);
+        const result = await getYouTubeVideoId(currentSong.name, currentSong.artist);
+        if (result.success && result.videoId) {
+          setVideoId(result.videoId);
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Video Not Found',
+            description: result.error,
+          });
+        }
+        setIsFetchingVideo(false);
+      };
+      fetchVideo();
+    } else {
+        setVideoId(null);
+    }
+  }, [currentSong, isLoading, toast]);
+
+
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
     
@@ -74,25 +103,60 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         <p className="text-muted-foreground mt-2">Select a song to see its chords.</p>
       </div>
   )
+  
+  const renderVideoPlayer = () => {
+    if (!currentSong) return null;
+
+    if (isFetchingVideo) {
+      return (
+        <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p>Finding video on YouTube...</p>
+        </div>
+      )
+    }
+
+    if (videoId) {
+       const opts = {
+          height: '100%',
+          width: '100%',
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+          },
+        };
+      return (
+          <div className="aspect-video rounded-lg overflow-hidden shadow-lg bg-black">
+            <YouTube videoId={videoId} opts={opts} className="w-full h-full" />
+          </div>
+      );
+    }
+    
+    // Fallback when no video is found or being fetched
+     return (
+        <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground">
+          <Youtube className="w-12 h-12" />
+          <p>Select a song to load the video</p>
+        </div>
+      )
+  }
+
 
   return (
     <div className="flex flex-col h-full">
+      <div className="mb-4">
+        {renderVideoPlayer()}
+      </div>
+
       {currentSong && (
-        <div className="flex items-center gap-4 mb-6 p-4 rounded-lg bg-primary/10">
-            <div className="relative w-16 h-16 rounded-lg shadow-md overflow-hidden shrink-0">
-              <Image src={currentSong.art} alt={currentSong.name} fill sizes="64px" className="object-cover" data-ai-hint="music album" />
-            </div>
+        <div className="flex items-center gap-4 mb-6">
             <div className="overflow-hidden">
-                <p className="text-lg font-bold font-headline truncate">{currentSong.name}</p>
+                <p className="text-xl font-bold font-headline truncate">{currentSong.name}</p>
                 <p className="text-muted-foreground truncate">{currentSong.artist}</p>
             </div>
             {isLoading && <Badge variant="secondary" className="ml-auto animate-pulse bg-accent/80 text-accent-foreground">Syncing...</Badge>}
         </div>
       )}
-
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-headline font-semibold">Chord Progression</h2>
-      </div>
       
       <div className="flex-1 overflow-auto pr-2 -mr-2">
         {isLoading ? (
@@ -100,7 +164,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         ) : chordData ? (
           renderLyricsAndChords()
         ) : (
-          renderEmptyState()
+          !currentSong && renderEmptyState()
         )}
       </div>
     </div>

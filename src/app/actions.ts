@@ -5,6 +5,7 @@ import { generateChords } from '@/ai/flows/generate-chords';
 import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { generateAccompanimentText } from '@/ai/flows/generate-accompaniment-text';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
+import { searchYouTubeVideo } from '@/services/youtube';
 import { 
   getCachedFretboard, 
   setCachedFretboard, 
@@ -157,5 +158,20 @@ export async function getAccompanimentText(input: GenerateAccompanimentTextInput
   } catch (error) {
     console.error('Error generating accompaniment text:', error);
     return { success: false, error: 'Failed to get playing suggestions. Please try again.' };
+  }
+}
+
+export async function getYouTubeVideoId(songName: string, artistName: string): Promise<{ success: boolean; videoId?: string; error?: string; }> {
+  try {
+    const query = `${songName} ${artistName} official audio`;
+    const videoId = await searchYouTubeVideo(query);
+    if (videoId) {
+      return { success: true, videoId };
+    } else {
+      return { success: false, error: 'Could not find a matching video on YouTube.' };
+    }
+  } catch (error) {
+    console.error('Error searching YouTube video:', error);
+    return { success: false, error: 'An error occurred while searching for a video.' };
   }
 }
