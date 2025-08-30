@@ -22,6 +22,10 @@ interface ChordDisplayProps {
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [isFetchingVideo, setIsFetchingVideo] = useState(false);
+  const [activeLine, setActiveLine] = useState(-1);
+  const [player, setPlayer] = useState<any>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,6 +33,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       const fetchVideo = async () => {
         setIsFetchingVideo(true);
         setVideoId(null);
+        setActiveLine(-1);
         const result = await getYouTubeVideoId(currentSong.name, currentSong.artist);
         if (result.success && result.videoId) {
           setVideoId(result.videoId);
@@ -44,42 +49,61 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       fetchVideo();
     } else {
         setVideoId(null);
+        setActiveLine(-1);
     }
   }, [currentSong, isLoading, toast]);
+
+  useEffect(() => {
+    if (!player || !chordData?.lines) return;
+
+    const interval = setInterval(async () => {
+      const currentTime = await player.getCurrentTime();
+      if (!chordData?.lines) return;
+      
+      const currentLineIndex = chordData.lines.findIndex((line, index) => {
+        const nextLine = chordData.lines[index + 1];
+        return currentTime >= line.startTime && (!nextLine || currentTime < nextLine.startTime);
+      });
+
+      if (currentLineIndex !== -1 && currentLineIndex !== activeLine) {
+        setActiveLine(currentLineIndex);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+
+  }, [player, chordData, activeLine]);
+
+   useEffect(() => {
+    if (activeLine >= 0 && lineRefs.current[activeLine] && scrollContainerRef.current) {
+      lineRefs.current[activeLine]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [activeLine]);
 
 
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
     
-    // When lyrics are present
-    if (chordData.lines.some(line => line.lyrics && line.lyrics.trim() !== '')) {
-        return (
-            <div className="space-y-6 animate-in fade-in duration-500">
-                {chordData.lines.map((line, lineIndex) => (
-                    <div key={lineIndex} className="flex flex-col gap-1">
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                           {line.measures.map((measure, measureIndex) => (
-                                <span key={measureIndex} className="text-primary font-bold font-code text-sm min-h-[1em]">{measure.chords || ' '}</span>
-                            ))}
-                        </div>
-                        <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
-                    </div>
-                ))}
-            </div>
-        )
-    }
-
-    // When no lyrics, display chords in a grid
-    const allMeasures = chordData.lines.flatMap(line => line.measures);
+    // Always render lyrics and chords if available, even if lyrics are empty strings
     return (
-        <div className="grid grid-cols-4 gap-4 animate-in fade-in duration-500">
-            {allMeasures.map((measure, index) => (
-                <div key={index} className="flex items-center justify-center p-2 rounded-md bg-muted/30">
-                    <span className="text-primary font-bold font-code text-lg">{measure.chords || ' '}</span>
-                </div>
-            ))}
-        </div>
-    )
+      <div className="space-y-6 animate-in fade-in duration-500">
+        {chordData.lines.map((line, lineIndex) => (
+          <div 
+            key={lineIndex} 
+            ref={el => lineRefs.current[lineIndex] = el}
+            className={`transition-all duration-300 p-2 rounded-lg ${activeLine === lineIndex ? 'bg-primary/20 scale-105' : ''}`}
+          >
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <span className="text-primary font-bold font-code text-sm min-h-[1em]">{line.chords || ' '}</span>
+            </div>
+            <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   const renderSkeletons = () => (
@@ -127,7 +151,15 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         };
       return (
           <div className="aspect-video rounded-lg overflow-hidden shadow-lg bg-black">
-            <YouTube videoId={videoId} opts={opts} className="w-full h-full" />
+            <YouTube 
+              videoId={videoId} 
+              opts={opts} 
+              className="w-full h-full"
+              onReady={(event) => setPlayer(event.target)}
+              onPlay={() => {
+                if (activeLine === -1) setActiveLine(0);
+              }}
+            />
           </div>
       );
     }
@@ -158,7 +190,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
         </div>
       )}
       
-      <div className="flex-1 overflow-auto pr-2 -mr-2">
+      <div className="flex-1 overflow-auto pr-2 -mr-2" ref={scrollContainerRef}>
         {isLoading ? (
           renderSkeletons()
         ) : chordData ? (

@@ -4,9 +4,8 @@ import { z } from 'zod';
 export const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
     lyrics: z.string().describe('A line of lyrics.'),
-    measures: z.array(z.object({
-      chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
-    })).describe('The measures for this line of lyrics.'),
+    chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
+    startTime: z.number().describe('The start time of this line in seconds.'),
   })).describe('The lyrics and chords for the song, line by line.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });

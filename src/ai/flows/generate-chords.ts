@@ -18,14 +18,14 @@ const GenerateChordsInputSchema = z.object({
 });
 
 const GenerateChordsOutputSchema = z.object({
-  lines: z.array(z.object({
-    lyrics: z.string().describe('A line of lyrics.'),
-    measures: z.array(z.object({
-      chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
-    })).describe('The measures for this line of lyrics.'),
-  })).describe('The lyrics and chords for the song, line by line.'),
-  uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
+    lines: z.array(z.object({
+        lyrics: z.string().describe('A line of lyrics.'),
+        chords: z.string().describe('The chords for this line, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
+        startTime: z.number().describe('The start time of this line in seconds from the beginning of the song.'),
+    })).describe('The lyrics and chords for the song, line by line, with timestamps.'),
+    uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });
+
 
 export async function generateChords(input: GenerateChordsInput): Promise<GenerateChordsOutput> {
   return generateChordsFlow(input);
@@ -39,31 +39,28 @@ const prompt = ai.definePrompt({
     arrangementStyle: z.string().optional(),
   })},
   output: {schema: GenerateChordsOutputSchema},
-  prompt: `You are a musical expert and your sole task is to generate a chord progression for a given song. You MUST NOT generate lyrics.
+  prompt: `You are a musical expert and your task is to generate a chord progression with lyrics and timestamps for a given song.
 
-  Generate a chord progression for the song "{{songName}}" by "{{artistName}}".
+  Generate the chords, lyrics, and start times for "{{songName}}" by "{{artistName}}".
   
   Please adhere to the following arrangement style: {{arrangementStyle}}.
-  - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines (like descending basslines), or add 7ths, 9ths, or other extensions to enrich the harmony.
+  - If the style is 'Pop Arrangement', create a more intricate arrangement. Feel free to use techniques like slash chords (e.g., G/B) to create interesting basslines, or add 7ths, 9ths, or other extensions.
 
-  For each line of the song structure (e.g., verse, chorus), provide:
-  1. An empty string for the 'lyrics' field.
-  2. An array of measures, with the corresponding chords for each measure. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
+  For each line of the song, provide:
+  1. The lyrics for that line.
+  2. The corresponding chords. Each chord string must be a standard, clean chord name (e.g., "C", "G7", "F#m", "C/G").
+  3. The exact start time of that line in seconds (as a number).
 
   Also, provide an array of all unique chords found in the song.
   
-  IMPORTANT: You must generate chords for the entire song structure. Do not leave out any data. The lyrics field must always be an empty string.
+  IMPORTANT: You must generate chords for the entire song structure. Do not leave out any data. The lyrics and timestamps are crucial.
 
-  Example for one line (NO LYRICS):
-  - lyrics: "" 
-  - measures: [
-      {
-        chords: "C G Am F"
-      }, 
-      {
-        chords: "C G F"
-      }
-    ]
+  Example for one line:
+  {
+    "lyrics": "I found a love for me",
+    "chords": "C G Am F",
+    "startTime": 15.5
+  }
 
   Structure the final output as an object containing 'lines' and 'uniqueChords'.`,
 });
@@ -97,13 +94,9 @@ const generateChordsFlow = ai.defineFlow(
     if (output && output.lines) {
         const chordSet = new Set<string>();
         output.lines.forEach(line => {
-            if (line.measures) {
-                line.measures.forEach(measure => {
-                    if(measure.chords) {
-                        measure.chords.split(' ').forEach(chord => {
-                            if (chord) chordSet.add(chord.trim());
-                        });
-                    }
+            if (line.chords) {
+                line.chords.split(' ').forEach(chord => {
+                    if (chord) chordSet.add(chord.trim());
                 });
             }
         });
