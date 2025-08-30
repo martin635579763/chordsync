@@ -22,10 +22,10 @@ interface ChordDisplayProps {
 export default function ChordDisplay({ chordData, isLoading, currentSong }: ChordDisplayProps) {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [isFetchingVideo, setIsFetchingVideo] = useState(false);
-  const [activeLine, setActiveLine] = useState(-1);
+  const [activeMeasure, setActiveMeasure] = useState<{ line: number; measure: number } | null>(null);
   const [player, setPlayer] = useState<any>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const measureRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       const fetchVideo = async () => {
         setIsFetchingVideo(true);
         setVideoId(null);
-        setActiveLine(-1);
+        setActiveMeasure(null);
         const result = await getYouTubeVideoId(currentSong.name, currentSong.artist);
         if (result.success && result.videoId) {
           setVideoId(result.videoId);
@@ -49,7 +49,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       fetchVideo();
     } else {
         setVideoId(null);
-        setActiveLine(-1);
+        setActiveMeasure(null);
     }
   }, [currentSong, isLoading, toast]);
 
@@ -60,50 +60,82 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
       const currentTime = await player.getCurrentTime();
       if (!chordData?.lines) return;
       
-      const currentLineIndex = chordData.lines.findIndex((line, index) => {
-        const nextLine = chordData.lines[index + 1];
-        return currentTime >= line.startTime && (!nextLine || currentTime < nextLine.startTime);
-      });
+      let currentMeasure: { line: number, measure: number } | null = null;
+      let lastMeasure: { line: number, measure: number } | null = null;
 
-      if (currentLineIndex !== -1 && currentLineIndex !== activeLine) {
-        setActiveLine(currentLineIndex);
+      for (let lineIndex = 0; lineIndex < chordData.lines.length; lineIndex++) {
+        const line = chordData.lines[lineIndex];
+        for (let measureIndex = 0; measureIndex < line.measures.length; measureIndex++) {
+            const measure = line.measures[measureIndex];
+             if (currentTime >= measure.startTime) {
+               lastMeasure = { line: lineIndex, measure: measureIndex };
+             }
+        }
       }
-    }, 500);
+      currentMeasure = lastMeasure;
+
+      if (currentMeasure && (currentMeasure.line !== activeMeasure?.line || currentMeasure.measure !== activeMeasure?.measure)) {
+        setActiveMeasure(currentMeasure);
+      }
+    }, 250);
 
     return () => clearInterval(interval);
 
-  }, [player, chordData, activeLine]);
+  }, [player, chordData, activeMeasure]);
 
    useEffect(() => {
-    if (activeLine >= 0 && lineRefs.current[activeLine] && scrollContainerRef.current) {
-      lineRefs.current[activeLine]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+    if (activeMeasure) {
+      const key = `${activeMeasure.line}-${activeMeasure.measure}`;
+      const measureElement = measureRefs.current.get(key);
+      if (measureElement && scrollContainerRef.current) {
+        const lineElement = measureElement.parentElement;
+        const scrollContainer = scrollContainerRef.current;
+        if (!lineElement) return;
+
+        // Check if the line is already in view
+        const lineRect = lineElement.getBoundingClientRect();
+        const containerRect = scrollContainer.getBoundingClientRect();
+        
+        const isVisible = lineRect.top >= containerRect.top && lineRect.bottom <= containerRect.bottom;
+
+        if (!isVisible) {
+          lineElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
+      }
     }
-  }, [activeLine]);
+  }, [activeMeasure]);
 
 
   const renderLyricsAndChords = () => {
     if (!chordData?.lines) return null;
     
-    // Always render lyrics and chords if available, even if lyrics are empty strings
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
         {chordData.lines.map((line, lineIndex) => (
-          <div 
-            key={lineIndex} 
-            ref={el => lineRefs.current[lineIndex] = el}
-            className={`transition-all duration-300 p-2 rounded-lg ${activeLine === lineIndex ? 'bg-primary/20 scale-105' : ''}`}
-          >
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-primary font-bold font-code text-sm min-h-[1em]">
-              {line.measures.map((measure, measureIndex) => (
-                <span key={measureIndex} className="pr-4 border-r-2 last:border-r-0 border-primary/20">
-                  {measure.chords || ' '}
-                </span>
-              ))}
+          <div key={lineIndex} className="p-2 rounded-lg transition-all duration-300">
+            <div className="flex flex-wrap items-end gap-x-2 text-sm min-h-[1em]">
+              {line.measures.map((measure, measureIndex) => {
+                 const key = `${lineIndex}-${measureIndex}`;
+                 const isActive = activeMeasure?.line === lineIndex && activeMeasure?.measure === measureIndex;
+                 return (
+                    <span 
+                        key={key}
+                        ref={el => measureRefs.current.set(key, el)}
+                        className={`font-code font-bold p-1 rounded-md transition-all duration-150 ${
+                            isActive
+                                ? 'bg-primary text-primary-foreground scale-110'
+                                : 'bg-primary/10 text-primary'
+                        }`}
+                    >
+                      {measure.chords || ' '}
+                    </span>
+                 )
+              })}
             </div>
-            <p className="text-foreground text-lg">{line.lyrics || ' '}</p>
+            <p className="text-foreground text-lg mt-1">{line.lyrics || ' '}</p>
           </div>
         ))}
       </div>
@@ -114,7 +146,7 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
     <div className="space-y-6">
        {[...Array(8)].map((_, i) => (
          <div key={i} className="space-y-2">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="flex gap-2">
                 <Skeleton className="h-5 w-1/4 bg-muted/50" />
                 <Skeleton className="h-5 w-1/4 bg-muted/50" />
             </div>
@@ -161,7 +193,9 @@ export default function ChordDisplay({ chordData, isLoading, currentSong }: Chor
               className="w-full h-full"
               onReady={(event) => setPlayer(event.target)}
               onPlay={() => {
-                if (activeLine === -1) setActiveLine(0);
+                if (!activeMeasure) {
+                  setActiveMeasure({ line: 0, measure: 0 });
+                }
               }}
             />
           </div>

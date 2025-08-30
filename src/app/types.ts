@@ -6,6 +6,7 @@ export const GenerateChordsOutputSchema = z.object({
     lyrics: z.string().describe('A line of lyrics.'),
     measures: z.array(z.object({
         chords: z.string().describe('The chords for this measure, separated by spaces. Should be standard chord names (e.g., "C", "G7", "F#m", "C/G").'),
+        startTime: z.number().describe('The start time of this measure in seconds.'),
     })).describe('The measures for this line.'),
     startTime: z.number().describe('The start time of this line in seconds.'),
   })).describe('The lyrics and chords for the song, line by line.'),
@@ -48,5 +49,3 @@ export const GenerateAccompanimentTextOutputSchema = z.object({
   advancedTechniques: z.string().optional().describe("Suggestions for advanced techniques like palm muting, hammer-ons, or specific picking patterns for different sections (verse, chorus)."),
 });
 export type GenerateAccompanimentTextOutput = z.infer<typeof GenerateAccompanimentTextOutputSchema>;
-
-```
