@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getChords, getInitialSongs, deleteChords } from '@/app/actions';
+import { getChords, getInitialSongs, deleteChords, searchSongs as searchSongsAction } from '@/app/actions';
 import ChordDisplay from '@/components/chord-display';
 import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,13 +30,14 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [isFetchingInitial, setIsFetchingInitial] = useState(true);
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
 
   const fetchSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
     const result = await getInitialSongs(style);
     if (result.success && result.data) {
       setInitialSongs(result.data);
-      // Don't override search results if there's a query
     } else {
       toast({
         variant: 'destructive',
@@ -53,8 +54,7 @@ export default function Home() {
     fetchSongs(arrangementStyle);
     setChordData(null);
     setCurrentSong(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arrangementStyle]);
+  }, [arrangementStyle, fetchSongs]);
 
 
   const handleSongSelect = async (song: { uri: string; name:string; artist: string; art: string; }, forceNew: boolean = false) => {
@@ -66,16 +66,23 @@ export default function Home() {
     }
     setCurrentSong({ name: song.name, artist: song.artist, art: song.art, uri: song.uri });
     
-    // Slight delay to make the loading state feel more responsive
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     const result = await getChords({ songUri: song.uri, arrangementStyle }, forceNew);
     setIsLoading(false);
 
     if (result.success && result.data) {
       setChordData(result.data);
-       if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
-         fetchSongs(arrangementStyle);
+      if (isShowingSearchResults) {
+        setSearchResults(prevResults =>
+          prevResults.map(s =>
+            s.uri === song.uri ? { ...s, isGenerated: true } : s
+          )
+        );
+      } else {
+         if (!song.uri.startsWith('local:') && (!initialSongs.some(s => s.uri === song.uri) || forceNew)) {
+           fetchSongs(arrangementStyle);
+        }
       }
     } else {
       toast({
@@ -85,7 +92,7 @@ export default function Home() {
       });
     }
   };
-
+  
   const handleUpdate = (song: Song) => {
     handleSongSelect(song, true);
   };
@@ -101,12 +108,8 @@ export default function Home() {
       onDeletionComplete(updatedSongs);
       
       if (currentSong?.uri === song.uri) {
-        if (updatedSongs.length > 0) {
-          handleSongSelect(updatedSongs[0]);
-        } else {
           setChordData(null);
           setCurrentSong(null);
-        }
       }
     } else {
        toast({
@@ -117,6 +120,31 @@ export default function Home() {
     }
   };
 
+  const handleSearch = async (query: string) => {
+    if (!query) {
+        setSearchResults([]);
+        setIsShowingSearchResults(false);
+        return;
+    };
+
+    setIsShowingSearchResults(true);
+    const result = await searchSongsAction(query, arrangementStyle);
+    
+    if (result.success && result.data) {
+      if (result.data.length > 0) {
+        setSearchResults(result.data);
+      } else {
+        setSearchResults([]);
+        toast({ title: 'No results', description: 'No songs found for your search on Spotify.' });
+      }
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Search Failed",
+        description: result.error || "An unknown error occurred during search.",
+      });
+    }
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-6 md:p-8">
@@ -133,14 +161,17 @@ export default function Home() {
               onSongSelect={handleSongSelect}
               onUpdate={handleUpdate}
               onDelete={handleDelete}
+              onSearch={handleSearch}
               isLoading={isLoading}
               initialSongs={initialSongs}
               searchResults={searchResults}
-              setSearchResults={setSearchResults}
               isFetchingInitial={isFetchingInitial}
-              fetchInitialSongs={fetchSongs}
               arrangementStyle={arrangementStyle}
               setArrangementStyle={setArrangementStyle}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isShowingSearchResults={isShowingSearchResults}
+              setIsShowingSearchResults={setIsShowingSearchResults}
             />
           </CardContent>
         </Card>

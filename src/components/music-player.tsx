@@ -9,7 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
 import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-import { searchSongs } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
@@ -29,56 +28,42 @@ interface MusicPlayerProps {
   onSongSelect: (song: Omit<Song, 'previewUrl' | 'isGenerated'>, forceNew?: boolean) => void;
   onUpdate: (song: Song) => void;
   onDelete: (song: Song, onDeletionComplete: (updatedSongs: Song[]) => void) => void;
+  onSearch: (query: string) => void;
   isLoading: boolean;
   initialSongs: Song[];
   searchResults: Song[];
-  setSearchResults: (songs: Song[]) => void;
   isFetchingInitial: boolean;
-  fetchInitialSongs: (style: string) => Promise<Song[]>;
   arrangementStyle: string;
   setArrangementStyle: (style: string) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  isShowingSearchResults: boolean;
+  setIsShowingSearchResults: (isShowing: boolean) => void;
 }
 
 export default function MusicPlayer({ 
   onSongSelect, 
   onUpdate,
   onDelete,
+  onSearch,
   isLoading, 
   initialSongs,
   searchResults,
-  setSearchResults,
   isFetchingInitial,
-  fetchInitialSongs,
   arrangementStyle,
   setArrangementStyle,
+  searchQuery,
+  setSearchQuery,
+  isShowingSearchResults,
+  setIsShowingSearchResults
 }: MusicPlayerProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
-  const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
   
-  const handleArrangementChange = (style: string) => {
-    setArrangementStyle(style);
-    fetchInitialSongs(style);
-    setIsShowingSearchResults(false);
-    setSearchQuery('');
-  };
-  
-  useEffect(() => {
-    fetchInitialSongs(arrangementStyle);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!isShowingSearchResults) {
-      setSearchResults(initialSongs);
-    }
-  }, [initialSongs, isShowingSearchResults, setSearchResults]);
-
   useEffect(() => {
     setSelectedSongForPreview(null);
   }, [arrangementStyle])
@@ -111,33 +96,11 @@ export default function MusicPlayer({
     }
   }, [selectedSongForPreview]);
 
-  const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!searchQuery) {
-        setSearchResults([]);
-        setIsShowingSearchResults(false);
-        return;
-    };
-
     setIsSearching(true);
-    setIsShowingSearchResults(true);
-    const result = await searchSongs(searchQuery, arrangementStyle);
+    await onSearch(searchQuery);
     setIsSearching(false);
-
-    if (result.success && result.data) {
-      if (result.data.length > 0) {
-        setSearchResults(result.data);
-      } else {
-        setSearchResults([]);
-        toast({ title: 'No results', description: 'No songs found for your search on Spotify.' });
-      }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Search Failed",
-        description: result.error || "An unknown error occurred during search.",
-      });
-    }
   };
 
   const handleSearchInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -145,10 +108,8 @@ export default function MusicPlayer({
     setSearchQuery(query);
     if (query === '') {
         setIsShowingSearchResults(false);
-        setSearchResults([]);
     }
   }
-
 
   const handleSingleClick = (song: Song) => {
     setSelectedSongForPreview(song);
@@ -187,8 +148,7 @@ export default function MusicPlayer({
     e.stopPropagation();
     onDelete(song, (updatedSongs) => {
       // This callback updates the local state after deletion is confirmed
-      setSearchResults(updatedSongs); 
-      setSelectedSongForPreview(updatedSongs[0] || null);
+      // Handled at page level now
     });
   };
 
@@ -203,12 +163,10 @@ export default function MusicPlayer({
         art: 'https://picsum.photos/100/100?random=99',
         previewUrl: fileUrl,
       };
-      setSearchResults([fileSong, ...searchResults.filter(s => !s.uri.startsWith('local:'))]);
       setIsShowingSearchResults(true);
       handleDoubleClick(fileSong);
     }
   };
-
   
   const handlePlayPause = () => {
     const audio = audioRef.current;
@@ -233,7 +191,7 @@ export default function MusicPlayer({
   const renderSongList = () => {
     const songList = isShowingSearchResults ? searchResults : initialSongs;
 
-    if (isFetchingInitial || (isSearching && isShowingSearchResults)) {
+    if (isFetchingInitial && !isShowingSearchResults) {
       return (
           <div className="flex justify-center items-center py-4">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -244,7 +202,7 @@ export default function MusicPlayer({
     if (songList.length === 0 && isShowingSearchResults) {
       return (
           <div className="text-center py-4 text-muted-foreground">
-              <p>No songs found for "{searchQuery}" on Spotify.</p>
+              <p>Search for songs on Spotify.</p>
           </div>
       );
     }
@@ -278,19 +236,10 @@ export default function MusicPlayer({
         <div className="flex items-center gap-1 ml-auto">
             {isShowingSearchResults && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
             
-            {song.isGenerated && isShowingSearchResults && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                       <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
-                         Update
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Regenerate Chords</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            {isShowingSearchResults && song.isGenerated && (
+                <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                  Update
+                </Button>
             )}
 
             {!isShowingSearchResults && (
@@ -335,7 +284,7 @@ export default function MusicPlayer({
       <audio ref={audioRef} />
       <h2 className="text-2xl font-headline font-semibold mb-4 text-center lg:text-left">Music Source</h2>
       <div className="flex-1 flex flex-col min-h-0">
-        <form onSubmit={handleSearch} className="relative mb-4 flex gap-2">
+        <form onSubmit={handleSearchSubmit} className="relative mb-4 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -353,7 +302,7 @@ export default function MusicPlayer({
 
         <div className="mb-4 space-y-2">
           <Label htmlFor="arrangement-style" className="flex items-center gap-2 text-muted-foreground"><Wand2 className="w-4 h-4 text-accent"/> Arrangement Style</Label>
-          <Select value={arrangementStyle} onValueChange={handleArrangementChange} disabled={isLoading}>
+          <Select value={arrangementStyle} onValueChange={setArrangementStyle} disabled={isLoading}>
             <SelectTrigger id="arrangement-style" className="w-full">
               <SelectValue placeholder="Select arrangement style" />
             </SelectTrigger>
