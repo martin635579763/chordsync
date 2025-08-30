@@ -4,23 +4,20 @@
  * @fileOverview Generates a fretboard diagram for a given guitar chord.
  *
  * - generateFretboard - A function that returns the fingering for a given chord.
- * - GenerateFretboardInput - The input type for the generateFretboard function.
- * - GenerateFretboardOutput - The return type for the generateFretboard function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import type { GenerateFretboardInput, GenerateFretboardOutput } from '@/app/types';
 
 const GenerateFretboardInputSchema = z.object({
   chord: z.string().describe('The name of the chord, e.g., "C", "G7", "F#m", "C/G".'),
 });
-type GenerateFretboardInput = z.infer<typeof GenerateFretboardInputSchema>;
 
 const GenerateFretboardOutputSchema = z.object({
   frets: z.array(z.number()).length(6).describe('An array of 6 numbers representing the fret for each string (EADGBe). -1 for a muted string, 0 for an open string.'),
   fingers: z.array(z.number()).length(6).describe('An array of 6 numbers representing the finger to use for each string (EADGBe). 0 for open strings, 1-4 for fingers.'),
 });
-export type GenerateFretboardOutput = z.infer<typeof GenerateFretboardOutputSchema>;
 
 export async function generateFretboard(input: GenerateFretboardInput): Promise<GenerateFretboardOutput> {
   return generateFretboardFlow(input);

@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { getFretboard } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
+import type { GenerateFretboardOutput } from '@/app/types';
 
 interface FretboardDiagramProps {
   chord: string;

@@ -5,19 +5,17 @@
  * @fileOverview Generates chord progressions for a song playing from Spotify.
  *
  * - generateChords - A function that handles the chord progression generation process.
- * - GenerateChordsInput - The input type for the generateChords function.
- * - GenerateChordsOutput - The return type for the generateChords function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { getTrackDetails } from '@/services/spotify';
+import type { GenerateChordsInput, GenerateChordsOutput } from '@/app/types';
 
 const GenerateChordsInputSchema = z.object({
   songUri: z.string().describe('The Spotify URI of the song, or a local file URI.'),
   arrangementStyle: z.string().optional().describe('The desired arrangement style for the chords.'),
 });
-export type GenerateChordsInput = z.infer<typeof GenerateChordsInputSchema>;
 
 const GenerateChordsOutputSchema = z.object({
   lines: z.array(z.object({
@@ -28,7 +26,6 @@ const GenerateChordsOutputSchema = z.object({
   })).describe('The lyrics and chords for the song, line by line.'),
   uniqueChords: z.array(z.string()).describe('An array of all unique chords present in the song, in standard notation (e.g., "C", "G7", "Am").'),
 });
-export type GenerateChordsOutput = z.infer<typeof GenerateChordsOutputSchema>;
 
 export async function generateChords(input: GenerateChordsInput): Promise<GenerateChordsOutput> {
   return generateChordsFlow(input);

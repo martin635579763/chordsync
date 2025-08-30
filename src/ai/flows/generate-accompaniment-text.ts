@@ -4,13 +4,11 @@
  * @fileOverview Generates textual guitar accompaniment suggestions.
  *
  * - generateAccompanimentText - A function that returns playing suggestions.
- * - GenerateAccompanimentTextInput - The input type.
- * - GenerateAccompanimentTextOutput - The return type.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { GenerateChordsOutput } from './generate-chords';
+import type { GenerateChordsOutput } from '@/app/types';
 
 const GenerateAccompanimentTextInputSchema = z.object({
   songName: z.string().describe('The name of the song.'),

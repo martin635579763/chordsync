@@ -2,7 +2,7 @@
 'use server';
 
 import { generateChords } from '@/ai/flows/generate-chords';
-import { generateFretboard, type GenerateFretboardOutput } from '@/ai/flows/generate-fretboard';
+import { generateFretboard } from '@/ai/flows/generate-fretboard';
 import { generateAccompanimentText } from '@/ai/flows/generate-accompaniment-text';
 import { searchTracks as searchSpotifyTracks, getTrackDetails } from '@/services/spotify';
 import { 
@@ -16,24 +16,7 @@ import {
   getCachedAccompanimentText,
   setCachedAccompanimentText
 } from '@/services/firebase';
-import { z } from 'zod';
-import type { GenerateChordsOutput, GenerateChordsInput } from '@/ai/flows/generate-chords';
-
-
-export const GenerateAccompanimentTextInputSchema = z.object({
-  songName: z.string().describe('The name of the song.'),
-  artistName: z.string().describe('The name of the artist.'),
-  chords: z.custom<GenerateChordsOutput>().describe('The chord progression and lyrics object.'),
-  arrangementStyle: z.string().optional().describe('The desired arrangement style.'),
-});
-export type GenerateAccompanimentTextInput = z.infer<typeof GenerateAccompanimentTextInputSchema>;
-
-export const GenerateAccompanimentTextOutputSchema = z.object({
-  playingStyleSuggestion: z.string().describe("A suggestion for the overall playing style, including dynamics and feel."),
-  strummingPattern: z.string().describe("A suggested strumming pattern in a 'D DU UDU' format, where D=Down, U=Up. Include a simple text-based diagram if possible."),
-  advancedTechniques: z.string().optional().describe("Suggestions for advanced techniques like palm muting, hammer-ons, or specific picking patterns for different sections (verse, chorus)."),
-});
-export type GenerateAccompanimentTextOutput = z.infer<typeof GenerateAccompanimentTextOutputSchema>;
+import type { GenerateChordsInput, GenerateChordsOutput, GenerateFretboardOutput, GenerateAccompanimentTextInput, GenerateAccompanimentTextOutput } from '@/app/types';
 
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {

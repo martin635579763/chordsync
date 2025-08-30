@@ -8,7 +8,7 @@ import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
 import { Guitar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import type { GenerateChordsOutput } from '@/app/types';
 import SimpleChordsDisplay from '@/components/simple-chords-display';
 
 type Song = {

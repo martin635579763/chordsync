@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Music, PlayCircle, PauseCircle, Loader2 } from 'lucide-react';
-import type { GenerateChordsOutput } from '@/ai/flows/generate-chords';
+import type { GenerateChordsOutput } from '@/app/types';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 
