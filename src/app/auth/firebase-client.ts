@@ -17,11 +17,18 @@ const googleProvider = new GoogleAuthProvider();
 
 export function onAuthStateChanged(callback: (user: User | null) => void) {
   return onIdTokenChanged(auth, async (user) => {
+    const wasUser = await auth.getRedirectResult();
     if (user) {
       const idToken = await user.getIdToken();
       await createSession(idToken);
+       if (wasUser) {
+        window.location.reload();
+      }
     } else {
       await signOutServer();
+      if (wasUser) {
+        window.location.reload();
+      }
     }
     callback(user);
   });
@@ -40,6 +47,7 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
+    window.location.reload();
     return { success: true };
   } catch (error: any) {
     console.error("Sign-Out Error:", error);
