@@ -138,7 +138,7 @@ export default function MusicPlayer({
           <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
         </div>
         
-        {isAdmin && (
+        {isAdmin && song.isGenerated && (
           <div className="flex items-center gap-1 ml-auto">
               <TooltipProvider>
                   <Tooltip>
