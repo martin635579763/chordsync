@@ -6,10 +6,15 @@ import { getChords, getInitialSongs, deleteChords, searchSongs as searchSongsAct
 import ChordDisplay from '@/components/chord-display';
 import MusicPlayer from '@/components/music-player';
 import { Card, CardContent } from '@/components/ui/card';
-import { Guitar } from 'lucide-react';
+import { Guitar, LogIn, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { GenerateChordsOutput } from '@/app/types';
 import SimpleChordsDisplay from '@/components/simple-chords-display';
+import { useAuth } from '@/app/auth/context';
+import { signInWithGoogle, signOut } from '@/app/auth/firebase-client';
+import { Button } from '@/components/ui/button';
+import { SpotifyIcon } from '@/components/icons';
+
 
 type Song = {
   uri: string;
@@ -25,6 +30,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string, uri: string } | null>(null);
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
+
 
   const [initialSongs, setInitialSongs] = useState<Song[]>([]);
   const [searchResults, setSearchResults] = useState<Song[]>([]);
@@ -136,14 +143,43 @@ export default function Home() {
       });
     }
   };
+  
+  const handleGoogleSignIn = async () => {
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      toast({
+        variant: 'destructive',
+        title: 'Sign In Failed',
+        description: result.error,
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-6 md:p-8">
-      <header className="w-full max-w-7xl mb-8 flex items-center justify-center sm:justify-start">
+       <header className="w-full max-w-7xl mb-8 flex items-center justify-between">
         <h1 className="text-4xl md:text-5xl font-logo font-bold text-primary flex items-center gap-3">
           <Guitar className="h-10 w-10" />
           耗子歌手的吉他屋
         </h1>
+        <div>
+          {user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" /> Sign Out
+              </Button>
+            </div>
+          ) : (
+             <Button onClick={handleGoogleSignIn}>
+                <SpotifyIcon className="mr-2 h-4 w-4" /> Sign In with Google
+            </Button>
+          )}
+        </div>
       </header>
       <div className="w-full max-w-7xl grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1">
         <Card className="shadow-lg bg-card/50 xl:col-span-1">
@@ -163,6 +199,7 @@ export default function Home() {
               setSearchQuery={setSearchQuery}
               isShowingSearchResults={isShowingSearchResults}
               setIsShowingSearchResults={setIsShowingSearchResults}
+              isAdmin={isAdmin}
             />
           </CardContent>
         </Card>

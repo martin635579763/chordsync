@@ -18,13 +18,38 @@ import {
   setCachedAccompanimentText
 } from '@/services/firebase';
 import type { GenerateChordsInput, GenerateChordsOutput, GenerateFretboardOutput, GenerateAccompanimentTextInput, GenerateAccompanimentTextOutput } from '@/app/types';
+import { cookies } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
+import { getAdminApp } from '@/app/auth/firebase-admin';
+
+async function getIsAdmin() {
+    try {
+        const adminApp = getAdminApp();
+        const sessionCookie = cookies().get('session')?.value;
+        if (!sessionCookie) return false;
+
+        const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
+        return decodedClaims.email === 'zhungmartin@gmail.com';
+    } catch (error) {
+        // This can happen if the session cookie is invalid or expired.
+        // Or if the Admin SDK is not configured.
+        console.error("Error verifying admin status:", error);
+        return false;
+    }
+}
 
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
   try {
+    if (forceNew) {
+        const isAdmin = await getIsAdmin();
+        if (!isAdmin) {
+            return { success: false, error: 'Unauthorized: Only admins can force-regenerate chords.' };
+        }
+    }
+
     const cacheKey = `${input.songUri}${input.arrangementStyle ? `-${input.arrangementStyle}` : ''}`;
     
-    // 1. Check cache first, unless forcing a new generation
     if (!forceNew) {
       const cachedData = await getCachedChords(cacheKey);
       if (cachedData) {
@@ -32,11 +57,9 @@ export async function getChords(input: GenerateChordsInput, forceNew: boolean = 
       }
     }
     
-    // 2. If not in cache or forceNew is true, generate with AI
     const output = await generateChords(input);
 
-    // 3. Store in cache for future use
-    if (input.songUri.startsWith('spotify:')) { // Only cache spotify songs
+    if (input.songUri.startsWith('spotify:')) {
         await setCachedChords(cacheKey, output, input.songUri, input.arrangementStyle || 'Standard');
     }
     
@@ -74,16 +97,13 @@ export async function searchSongs(query: string, arrangementStyle: string) {
 
 export async function getFretboard(chord: string): Promise<{ success: boolean; data?: GenerateFretboardOutput; error?: string; }> {
   try {
-    // 1. Check cache first
     const cachedData = await getCachedFretboard(chord);
     if (cachedData) {
       return { success: true, data: cachedData };
     }
 
-    // 2. If not in cache, generate with AI
     const output = await generateFretboard({ chord });
     
-    // 3. Store in cache for future use
     await setCachedFretboard(chord, output);
 
     return { success: true, data: output };
@@ -131,6 +151,10 @@ export async function getInitialSongs(arrangementStyle: string) {
 
 export async function deleteChords(songUri: string, arrangementStyle: string) {
   try {
+    const isAdmin = await getIsAdmin();
+    if (!isAdmin) {
+        return { success: false, error: 'Unauthorized' };
+    }
     const cacheKey = `${songUri}-${arrangementStyle}`;
     await deleteChordsFromDb(cacheKey);
     return { success: true };

@@ -30,6 +30,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/auth/session',
+        destination: '/api/auth/session',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

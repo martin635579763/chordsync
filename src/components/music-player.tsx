@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Loader2, Wand2, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, Music, Loader2, Wand2, Trash2, ArrowLeft, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,7 @@ interface MusicPlayerProps {
   setSearchQuery: (query: string) => void;
   isShowingSearchResults: boolean;
   setIsShowingSearchResults: (isShowing: boolean) => void;
+  isAdmin: boolean;
 }
 
 export default function MusicPlayer({ 
@@ -54,6 +55,7 @@ export default function MusicPlayer({
   setSearchQuery,
   isShowingSearchResults,
   setIsShowingSearchResults,
+  isAdmin,
 }: MusicPlayerProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSongUri, setSelectedSongUri] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function MusicPlayer({
     setSearchQuery('');
   };
   
-  const handleDoubleClick = (song: Song) => {
+  const handleRowClick = (song: Song) => {
     if (isLoading) return;
     setSelectedSongUri(song.uri);
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
@@ -124,8 +126,8 @@ export default function MusicPlayer({
         key={song.uri}
         role="button"
         tabIndex={0}
-        onClick={() => handleDoubleClick(song)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDoubleClick(song); }}
+        onClick={() => handleRowClick(song)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleRowClick(song); }}
         className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${selectedSongUri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
@@ -136,20 +138,20 @@ export default function MusicPlayer({
           <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
         </div>
         
-        <div className="flex items-center gap-1 ml-auto">
-            {isShowingSearchResults && song.isGenerated && <Badge variant="secondary">Generated</Badge>}
-            
-            {(isShowingSearchResults && song.isGenerated) && (
-                <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
-                  Update
-                </Button>
-            )}
-
-            {!isShowingSearchResults && (
-              <>
-                <Button variant="ghost" size="sm" className="h-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
-                    Update
-                </Button>
+        {isAdmin && (
+          <div className="flex items-center gap-1 ml-auto">
+              <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => handleUpdateButtonClick(e, song)} disabled={isLoading}>
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Force Regenerate</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -162,9 +164,8 @@ export default function MusicPlayer({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              </>
-            )}
-        </div>
+          </div>
+        )}
         
         {isLoading && selectedSongUri === song.uri && !song.isGenerated && (
           <Loader2 className="w-5 h-5 animate-spin text-primary ml-auto" />
