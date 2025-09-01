@@ -31,6 +31,7 @@ export default function Home() {
   const [currentSong, setCurrentSong] = useState<{ name: string; artist: string; art: string, uri: string } | null>(null);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
+  const [idToken, setIdToken] = useState<string | null>(null);
 
 
   const [initialSongs, setInitialSongs] = useState<Song[]>([]);
@@ -39,6 +40,14 @@ export default function Home() {
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      user.getIdToken().then(setIdToken);
+    } else {
+      setIdToken(null);
+    }
+  }, [user]);
 
   const fetchSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
@@ -75,7 +84,7 @@ export default function Home() {
     
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    const result = await getChords({ songUri: song.uri, arrangementStyle }, forceNew);
+    const result = await getChords({ songUri: song.uri, arrangementStyle }, idToken, forceNew);
     setIsLoading(false);
 
     if (result.success && result.data) {
@@ -104,7 +113,7 @@ export default function Home() {
   };
   
   const handleDelete = async (song: Song) => {
-    const result = await deleteChords(song.uri, arrangementStyle);
+    const result = await deleteChords(song.uri, arrangementStyle, idToken);
     if (result.success) {
       toast({
         title: 'Deleted',
@@ -126,7 +135,7 @@ export default function Home() {
   };
 
   const handleSearch = async (query: string) => {
-    const result = await searchSongsAction(query, arrangementStyle);
+    const result = await searchSongsAction(query, arrangementStyle, idToken);
     
     if (result.success && result.data) {
       if (result.data.length > 0) {

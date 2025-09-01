@@ -1,8 +1,7 @@
 'use client';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, onIdTokenChanged, GoogleAuthProvider, signInWithPopup as firebaseSignInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth';
-import { createSession, signOut as signOutServer } from './actions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,45 +9,22 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+export const clientApp: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(clientApp);
 const googleProvider = new GoogleAuthProvider();
 
 
 export function onAuthStateChanged(callback: (user: User | null) => void) {
-  let initialLoad = true;
-  let wasUser: boolean | null = null;
-  
   return onIdTokenChanged(auth, async (user) => {
-    const isUser = !!user;
-
-    // On initial load, just set the state and call the callback
-    if (initialLoad) {
-      wasUser = isUser;
-      initialLoad = false;
-      callback(user);
-      return;
-    }
-
-    // If the auth state has changed, handle session and reload
-    if (isUser !== wasUser) {
-      if (user) {
-        const idToken = await user.getIdToken();
-        await createSession(idToken);
-      } else {
-        await signOutServer();
-      }
-      // Reload the page to ensure all state is in sync with the new session
-      window.location.reload();
-    } else {
-       callback(user);
-    }
+    callback(user);
   });
 }
 
 export async function signInWithGoogle() {
   try {
     await firebaseSignInWithPopup(auth, googleProvider);
+    // Reload to ensure the new auth state is picked up everywhere
+    window.location.reload(); 
     return { success: true };
   } catch (error: any) {
     console.error("Google Sign-In Error:", error);
@@ -59,9 +35,11 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
-    // onAuthStateChanged will handle the reload
+    // Reload to ensure the new auth state is picked up everywhere
+    window.location.reload();
     return { success: true };
-  } catch (error: any) {
+  } catch (error: any)
+  {
     console.error("Sign-Out Error:", error);
     return { success: false, error: error.message };
   }
