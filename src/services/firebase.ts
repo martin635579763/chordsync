@@ -1,8 +1,23 @@
 
 'use server';
 
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
+import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
+import { 
+  getFirestore as getClientFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  getDocs, 
+  limit, 
+  query, 
+  orderBy, 
+  where, 
+  deleteDoc,
+  type Firestore
+} from 'firebase/firestore';
+import admin from 'firebase-admin';
+import { getAdminApp } from '@/app/auth/firebase-admin';
 import type { GenerateFretboardOutput, GenerateChordsOutput, GenerateAccompanimentTextOutput } from '@/app/types';
 import { getTrackDetails } from '@/services/spotify';
 
@@ -16,14 +31,23 @@ const firebaseConfig = {
 };
 
 
-let app;
+let clientApp: FirebaseApp;
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+  clientApp = initializeApp(firebaseConfig);
 } else {
-  app = getApp();
+  clientApp = getApp();
 }
 
-const db = getFirestore(app);
+function getDb(): Firestore {
+    const adminApp = getAdminApp();
+    if (adminApp) {
+        // Use admin firestore if available
+        return admin.firestore();
+    }
+    // Fallback to client firestore
+    return getClientFirestore(clientApp);
+}
+
 
 const fretboardCacheCollection = 'fretboardCache';
 const chordCacheCollection = 'chordCache';
@@ -36,6 +60,7 @@ function sanitizeDocId(id: string): string {
 }
 
 export async function getCachedFretboard(chord: string): Promise<GenerateFretboardOutput | null> {
+  const db = getDb();
   const docId = sanitizeDocId(chord);
   try {
     const docRef = doc(db, fretboardCacheCollection, docId);
@@ -55,6 +80,7 @@ export async function getCachedFretboard(chord: string): Promise<GenerateFretboa
 }
 
 export async function setCachedFretboard(chord: string, data: GenerateFretboardOutput): Promise<void> {
+  const db = getDb();
   const docId = sanitizeDocId(chord);
   try {
     const docRef = doc(db, fretboardCacheCollection, docId);
@@ -66,6 +92,7 @@ export async function setCachedFretboard(chord: string, data: GenerateFretboardO
 }
 
 export async function getCachedChords(cacheKey: string): Promise<GenerateChordsOutput | null> {
+  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
@@ -76,7 +103,9 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
       const data = docSnap.data();
       // Firestore Timestamps are not plain objects and cannot be passed from Server to Client Components.
       // We don't need it on the client, so we can just delete it.
-      delete data.timestamp;
+      if (data.timestamp) {
+        delete data.timestamp;
+      }
       return data as GenerateChordsOutput;
     } else {
       console.log(`[Firestore] Cache miss for song: ${cacheKey} (docId: ${docId})`);
@@ -89,6 +118,7 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
 }
 
 export async function checkChordCacheExists(cacheKey: string): Promise<boolean> {
+  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
@@ -102,6 +132,7 @@ export async function checkChordCacheExists(cacheKey: string): Promise<boolean> 
 
 
 export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string, arrangementStyle: string): Promise<void> {
+  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
@@ -117,6 +148,7 @@ export async function setCachedChords(cacheKey: string, data: GenerateChordsOutp
 }
 
 export async function deleteCachedChords(cacheKey: string): Promise<void> {
+    const db = getDb();
     const docId = sanitizeDocId(cacheKey);
     try {
         const docRef = doc(db, chordCacheCollection, docId);
@@ -130,6 +162,7 @@ export async function deleteCachedChords(cacheKey: string): Promise<void> {
 
 
 export async function getRecentChords(count: number): Promise<{ songUri: string, arrangementStyle: string }[]> {
+    const db = getDb();
     try {
         const q = query(
             collection(db, chordCacheCollection), 
@@ -151,6 +184,7 @@ export async function getRecentChords(count: number): Promise<{ songUri: string,
 }
 
 export async function getCachedAccompanimentText(cacheKey: string): Promise<GenerateAccompanimentTextOutput | null> {
+  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, accompanimentCacheCollection, docId);
@@ -166,6 +200,7 @@ export async function getCachedAccompanimentText(cacheKey: string): Promise<Gene
 }
 
 export async function setCachedAccompanimentText(cacheKey: string, data: GenerateAccompanimentTextOutput): Promise<void> {
+  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, accompanimentCacheCollection, docId);
@@ -178,6 +213,7 @@ export async function setCachedAccompanimentText(cacheKey: string, data: Generat
 
 // Check if Firestore is connected by trying to read a document.
 export async function checkFirestoreConnection() {
+    const db = getDb();
     try {
         const q = query(collection(db, fretboardCacheCollection), limit(1));
         await getDocs(q);
@@ -190,6 +226,7 @@ export async function checkFirestoreConnection() {
 }
 
 export async function searchCachedChords(searchQuery: string) {
+    const db = getDb();
     try {
         const q = query(
             collection(db, chordCacheCollection),

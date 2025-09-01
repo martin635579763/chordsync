@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 let adminApp: admin.app.App | null = null;
 
@@ -18,6 +19,8 @@ function initializeAdminApp() {
             adminApp = admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
             });
+            // Initialize firestore here to be used by getDb
+            getFirestore(adminApp);
         } else {
             adminApp = admin.app();
         }
