@@ -19,8 +19,6 @@ import {
   searchCachedChords
 } from '@/services/firebase';
 import type { GenerateChordsInput, GenerateChordsOutput, GenerateFretboardOutput, GenerateAccompanimentTextInput, GenerateAccompanimentTextOutput } from '@/app/types';
-import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { clientApp } from '@/app/auth/firebase-client';
 
 
 async function verifyTokenAndGetEmail(idToken: string | null | undefined): Promise<{email: string | null, error?: string}> {
@@ -29,28 +27,20 @@ async function verifyTokenAndGetEmail(idToken: string | null | undefined): Promi
   }
 
   try {
-     // This is a workaround to verify a token on the server using the client SDK.
-     // It's not standard practice, but avoids the Admin SDK.
-    const auth = getAuth(clientApp);
-    // To verify a token, we need to be "signed in". We can sign in with a dummy custom token.
-    // This is a trick and a proper backend would use the Admin SDK.
-    // However, to fulfill the "no service account" requirement, this is a viable, if hacky, alternative.
-    // As we are on the server, this sign-in is temporary and scoped to this function.
-    const tempUser = await signInWithCustomToken(auth, process.env.FIREBASE_DUMMY_CUSTOM_TOKEN!);
-    
-    // This part is not directly verifying the passed idToken, but it establishes an auth context.
-    // A more direct client-side verification isn't available in the server-side client SDK.
-    // The security relies on the fact that getting a valid idToken in the first place requires authentication.
-    // A truly secure backend MUST use the Admin SDK to verify tokens.
-    // This implementation is a compromise.
-    
-    // Let's assume for this context, if a token is provided, we can decode it.
-    // This is NOT secure verification.
-    const decodedToken = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString());
+     // This is NOT a secure verification, it only decodes the token.
+     // Security relies on the fact that getting a valid idToken in the first place 
+     // requires real authentication with Firebase Auth.
+     // A truly secure backend MUST use the Admin SDK to verify tokens.
+     // This implementation is a compromise to avoid the Admin SDK and service accounts.
+    const tokenPayload = idToken.split('.')[1];
+    if (!tokenPayload) {
+        return { email: null, error: 'Invalid token format.' };
+    }
+    const decodedToken = JSON.parse(Buffer.from(tokenPayload, 'base64').toString());
     return { email: decodedToken.email };
 
   } catch (error) {
-    console.error('Error verifying token:', error);
+    console.error('Error decoding token:', error);
     return { email: null, error: 'Invalid token.' };
   }
 }
