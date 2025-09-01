@@ -4,6 +4,7 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, limit, query, orderBy, where, deleteDoc } from 'firebase/firestore';
 import type { GenerateFretboardOutput, GenerateChordsOutput, GenerateAccompanimentTextOutput } from '@/app/types';
+import { getTrackDetails } from '@/services/spotify';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -104,7 +105,11 @@ export async function setCachedChords(cacheKey: string, data: GenerateChordsOutp
   const docId = sanitizeDocId(cacheKey);
   try {
     const docRef = doc(db, chordCacheCollection, docId);
-    await setDoc(docRef, {...data, songUri, arrangementStyle, timestamp: new Date()});
+    
+    const trackDetails = await getTrackDetails(songUri);
+    const searchTerms = trackDetails ? [trackDetails.name.toLowerCase(), ...trackDetails.artists.map(a => a.toLowerCase())] : [];
+
+    await setDoc(docRef, {...data, songUri, arrangementStyle, timestamp: new Date(), searchTerms });
     console.log(`[Firestore] Successfully cached chords for song: ${cacheKey} (docId: ${docId})`);
   } catch (error) {
     console.error(`[Firestore] Error setting cached chords for ${cacheKey} (docId: ${docId}):`, error);
@@ -181,5 +186,42 @@ export async function checkFirestoreConnection() {
     } catch (error) {
         console.error('[Firestore] Connection failed:', error);
         return false;
+    }
+}
+
+export async function searchCachedChords(searchQuery: string) {
+    try {
+        const q = query(
+            collection(db, chordCacheCollection),
+            where('searchTerms', 'array-contains', searchQuery.toLowerCase())
+        );
+
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            return [];
+        }
+
+        const songUris = querySnapshot.docs.map(doc => doc.data().songUri);
+        const uniqueSongUris = [...new Set(songUris)];
+
+        const trackDetailsPromises = uniqueSongUris.map(uri => getTrackDetails(uri));
+        const tracks = await Promise.all(
+             trackDetailsPromises.map(p => p.catch(e => {
+                console.error("Failed to fetch a track detail during search, skipping:", e);
+                return null;
+            }))
+        );
+
+        return tracks.filter(Boolean).map(track => ({
+            uri: track!.uri,
+            name: track!.name,
+            artist: track!.artists.join(', '),
+            art: track!.art,
+            previewUrl: track!.previewUrl,
+        }));
+
+    } catch (error) {
+        console.error('[Firestore] Error searching cached chords:', error);
+        return [];
     }
 }

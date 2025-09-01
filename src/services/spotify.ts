@@ -63,7 +63,7 @@ export async function getTrackDetails(trackUri: string) {
       previewUrl: track.preview_url,
     };
 
-    console.log('Successfully fetched track details from Spotify for URI:', trackUri);
+    // Do not log here as it can be noisy during searches.
     
     return trackDetails;
   } catch (error) {

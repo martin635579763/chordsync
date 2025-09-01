@@ -15,7 +15,8 @@ import {
   checkChordCacheExists, 
   deleteCachedChords as deleteChordsFromDb,
   getCachedAccompanimentText,
-  setCachedAccompanimentText
+  setCachedAccompanimentText,
+  searchCachedChords
 } from '@/services/firebase';
 import type { GenerateChordsInput, GenerateChordsOutput, GenerateFretboardOutput, GenerateAccompanimentTextInput, GenerateAccompanimentTextOutput } from '@/app/types';
 import { cookies } from 'next/headers';
@@ -72,21 +73,45 @@ export async function searchSongs(query: string, arrangementStyle: string) {
     if (!query) {
         return { success: true, data: [] };
     }
-    try {
-        const spotifyTracks = await searchSpotifyTracks(query);
-        
-        const resultsWithCacheStatus = await Promise.all(
-            spotifyTracks.map(async (track) => {
-                const cacheKey = `${track.uri}${arrangementStyle ? `-${arrangementStyle}` : ''}`;
-                const isGenerated = await checkChordCacheExists(cacheKey);
-                return {
-                    ...track,
-                    isGenerated,
-                };
-            })
-        );
 
-        return { success: true, data: resultsWithCacheStatus };
+    let isAdmin = false;
+    try {
+        const adminApp = getAdminApp();
+        if (adminApp) {
+            const sessionCookie = cookies().get('session')?.value;
+            if (sessionCookie) {
+                const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
+                if (decodedClaims.email === 'zhungmartin@gmail.com') {
+                    isAdmin = true;
+                }
+            }
+        }
+    } catch (error) {
+        // Not an admin if cookie is invalid or any other error
+        isAdmin = false;
+    }
+
+    try {
+        if (isAdmin) {
+            // Admin: Search Spotify directly
+            const spotifyTracks = await searchSpotifyTracks(query);
+            const resultsWithCacheStatus = await Promise.all(
+                spotifyTracks.map(async (track) => {
+                    const cacheKey = `${track.uri}${arrangementStyle ? `-${arrangementStyle}` : ''}`;
+                    const isGenerated = await checkChordCacheExists(cacheKey);
+                    return { ...track, isGenerated };
+                })
+            );
+            return { success: true, data: resultsWithCacheStatus };
+        } else {
+            // Non-admin/Guest: Search only the cache
+            const cachedSongs = await searchCachedChords(query);
+            const resultsWithCacheStatus = cachedSongs.map(song => ({
+                ...song,
+                isGenerated: true // They are by definition generated
+            }));
+            return { success: true, data: resultsWithCacheStatus };
+        }
     } catch (error) {
         console.error('Error searching songs:', error);
         return { success: false, error: 'Failed to search for songs. Please try again.'};
