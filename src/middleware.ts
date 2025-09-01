@@ -1,8 +1,8 @@
+
 import { type NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function middleware(request: NextRequest) {
-  const session = cookies().get('session')?.value;
+  const session = request.cookies.get('session')?.value;
 
   // If no session, no need to do anything.
   if (!session) {
