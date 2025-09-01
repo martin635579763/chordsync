@@ -1,15 +1,13 @@
 
 'use client';
 
-import { useState, useRef, FormEvent, useEffect, ChangeEvent } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { SpotifyIcon } from '@/components/icons';
-import { Search, Music, Upload, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Loader2, Wand2, RefreshCw, Trash2, ArrowLeft } from 'lucide-react';
+import { Search, Music, Loader2, Wand2, Trash2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
-import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -39,8 +37,6 @@ interface MusicPlayerProps {
   setSearchQuery: (query: string) => void;
   isShowingSearchResults: boolean;
   setIsShowingSearchResults: (isShowing: boolean) => void;
-  selectedSongForPreview: Song | null;
-  setSelectedSongForPreview: (song: Song | null) => void;
 }
 
 export default function MusicPlayer({ 
@@ -58,51 +54,9 @@ export default function MusicPlayer({
   setSearchQuery,
   isShowingSearchResults,
   setIsShowingSearchResults,
-  selectedSongForPreview,
-  setSelectedSongForPreview
 }: MusicPlayerProps) {
   const [isSearching, setIsSearching] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioFileRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { toast } = useToast();
-  
-  useEffect(() => {
-    if (arrangementStyle) {
-      setSelectedSongForPreview(null);
-    }
-  }, [arrangementStyle, setSelectedSongForPreview])
-
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio && selectedSongForPreview?.previewUrl && audio.src !== selectedSongForPreview.previewUrl) {
-        audio.src = selectedSongForPreview.previewUrl;
-        audio.play().catch(e => console.error("Error playing audio on select:", e));
-    } else if (audio && !selectedSongForPreview) {
-      audio.pause();
-      audio.src = '';
-    }
-  }, [selectedSongForPreview]);
+  const [selectedSongUri, setSelectedSongUri] = useState<string | null>(null);
 
   const handleSearchSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -121,37 +75,15 @@ export default function MusicPlayer({
     setIsShowingSearchResults(false);
     setSearchQuery('');
   };
-
-  const handleSingleClick = (song: Song) => {
-    setSelectedSongForPreview(song);
-
-    if (song.previewUrl) {
-      if (audioRef.current) {
-        if (audioRef.current.src === song.previewUrl && isPlaying) {
-          audioRef.current.pause();
-        } else {
-          audioRef.current.src = song.previewUrl;
-          audioRef.current.play().catch(e => console.error("Error playing audio on select:", e));
-        }
-      }
-    } else if (song.uri.startsWith('spotify:')) {
-        toast({
-            variant: "destructive",
-            title: "Preview Unavailable",
-            description: "A 30-second preview is not available for this song on Spotify.",
-        });
-    }
-  };
   
   const handleDoubleClick = (song: Song) => {
     if (isLoading) return;
-    
+    setSelectedSongUri(song.uri);
     onSongSelect({uri: song.uri, name: song.name, artist: song.artist, art: song.art});
-    setSelectedSongForPreview(song);
   };
   
   const handleUpdateButtonClick = (e: React.MouseEvent, song: Song) => {
-    e.stopPropagation(); // Prevent single/double click on the row
+    e.stopPropagation(); // Prevent click on the row
     onUpdate(song);
   };
   
@@ -159,42 +91,6 @@ export default function MusicPlayer({
     e.stopPropagation();
     onDelete(song);
   };
-
-  const handleAudioFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const fileUrl = URL.createObjectURL(file);
-      const fileSong: Song = {
-        uri: `local:file:${file.name}`,
-        name: file.name.replace(/\.[^/.]+$/, ""),
-        artist: 'Local File',
-        art: 'https://picsum.photos/100/100?random=99',
-        previewUrl: fileUrl,
-      };
-      setIsShowingSearchResults(true);
-      handleDoubleClick(fileSong);
-    }
-  };
-  
-  const handlePlayPause = () => {
-    const audio = audioRef.current;
-    if (!audio || !selectedSongForPreview) return;
-    
-    if (!selectedSongForPreview.previewUrl && selectedSongForPreview.uri.startsWith('spotify:')) {
-      toast({
-            variant: "destructive",
-            title: "Preview Unavailable",
-            description: "A 30-second preview is not available for this song on Spotify.",
-        });
-      return;
-    }
-
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play().catch(e => console.error("Error playing audio on click:", e));
-    }
-  }
 
   const renderSongList = () => {
     const songList = isShowingSearchResults ? searchResults : initialSongs;
@@ -228,10 +124,9 @@ export default function MusicPlayer({
         key={song.uri}
         role="button"
         tabIndex={0}
-        onClick={() => handleSingleClick(song)}
-        onDoubleClick={() => handleDoubleClick(song)}
+        onClick={() => handleDoubleClick(song)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDoubleClick(song); }}
-        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${selectedSongForPreview?.uri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+        className={`w-full text-left p-2 rounded-lg flex items-center gap-3 transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${selectedSongUri === song.uri ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
       >
         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0">
            <Image src={song.art} alt={song.name} fill sizes="40px" className="object-cover" data-ai-hint="music album" />
@@ -271,7 +166,7 @@ export default function MusicPlayer({
             )}
         </div>
         
-        {isLoading && selectedSongForPreview?.uri === song.uri && !song.isGenerated && (
+        {isLoading && selectedSongUri === song.uri && !song.isGenerated && (
           <Loader2 className="w-5 h-5 animate-spin text-primary ml-auto" />
         )}
       </div>
@@ -280,7 +175,6 @@ export default function MusicPlayer({
 
   return (
     <div className="flex flex-col h-full">
-      <audio ref={audioRef} />
       <h2 className="text-2xl font-headline font-semibold mb-4 text-center lg:text-left">Music Source</h2>
       <div className="flex-1 flex flex-col min-h-0">
         <form onSubmit={handleSearchSubmit} className="relative mb-4 flex gap-2">
@@ -312,7 +206,7 @@ export default function MusicPlayer({
           </Select>
         </div>
 
-        <ScrollArea className="flex-1 pr-4 -mr-4 mb-4">
+        <ScrollArea className="flex-1">
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
               <Music className="w-5 h-5" /> 
@@ -329,54 +223,6 @@ export default function MusicPlayer({
             {renderSongList()}
           </div>
         </ScrollArea>
-        
-        <Separator className="my-4" />
-
-        <div>
-           <p className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><Music className="w-5 h-5" /> Local Files</p>
-           <div className="grid grid-cols-1 gap-2">
-                <Input type="file" ref={audioFileRef} onChange={handleAudioFileChange} className="hidden" accept=".mp3,.wav" />
-                <Button variant="outline" className="w-full" onClick={() => audioFileRef.current?.click()} disabled={isLoading}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload MP3
-                </Button>
-           </div>
-        </div>
-      </div>
-      
-      <div className="mt-6 border-t pt-4">
-        <div className="flex items-center gap-4 mb-2">
-            {selectedSongForPreview ? (
-                <div className="relative w-14 h-14 rounded-lg shadow-md overflow-hidden shrink-0">
-                  <Image src={selectedSongForPreview.art} alt={selectedSongForPreview.name} fill sizes="56px" className="object-cover" data-ai-hint="music album" />
-                </div>
-            ) : (
-                <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shadow-md">
-                    <Music className="w-6 h-6 text-muted-foreground"/>
-                </div>
-            )}
-            <div className="flex-1 overflow-hidden">
-                <p className="font-bold text-lg truncate font-headline">{selectedSongForPreview?.name || 'Nothing Playing'}</p>
-                <p className="text-muted-foreground truncate">{selectedSongForPreview?.artist || 'Select a song'}</p>
-            </div>
-        </div>
-        <div className="flex justify-center items-center gap-4 mt-4">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Shuffle className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-                <SkipBack className="w-6 h-6" />
-            </Button>
-            <Button variant="default" size="icon" className="w-14 h-14 rounded-full shadow-lg bg-accent hover:bg-accent/90" onClick={handlePlayPause} disabled={!selectedSongForPreview}>
-                {isPlaying ? <Pause className="w-8 h-8 text-accent-foreground" /> : <Play className="w-8 h-8 text-accent-foreground" />}
-            </Button>
-            <Button variant="ghost" size="icon">
-                <SkipForward className="w-6 h-6" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Repeat className="w-5 h-5" />
-            </Button>
-        </div>
       </div>
     </div>
   );

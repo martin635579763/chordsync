@@ -32,7 +32,6 @@ export default function Home() {
   const [arrangementStyle, setArrangementStyle] = useState('Standard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isShowingSearchResults, setIsShowingSearchResults] = useState(false);
-  const [selectedSongForPreview, setSelectedSongForPreview] = useState<Song | null>(null);
 
   const fetchSongs = useCallback(async (style: string) => {
     setIsFetchingInitial(true);
@@ -55,7 +54,6 @@ export default function Home() {
     fetchSongs(arrangementStyle);
     setChordData(null);
     setCurrentSong(null);
-    setSelectedSongForPreview(null);
   }, [arrangementStyle, fetchSongs]);
 
 
@@ -111,9 +109,6 @@ export default function Home() {
         setChordData(null);
         setCurrentSong(null);
       }
-      if (selectedSongForPreview?.uri === song.uri) {
-        setSelectedSongForPreview(null);
-      }
     } else {
        toast({
         variant: "destructive",
@@ -168,8 +163,6 @@ export default function Home() {
               setSearchQuery={setSearchQuery}
               isShowingSearchResults={isShowingSearchResults}
               setIsShowingSearchResults={setIsShowingSearchResults}
-              selectedSongForPreview={selectedSongForPreview}
-              setSelectedSongForPreview={setSelectedSongForPreview}
             />
           </CardContent>
         </Card>
