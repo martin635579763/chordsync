@@ -22,29 +22,24 @@ import { cookies } from 'next/headers';
 import { getAuth } from 'firebase-admin/auth';
 import { getAdminApp } from '@/app/auth/firebase-admin';
 
-async function getIsAdmin() {
-    try {
-        const adminApp = getAdminApp();
-        const sessionCookie = cookies().get('session')?.value;
-        if (!sessionCookie) return false;
-
-        const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
-        return decodedClaims.email === 'zhungmartin@gmail.com';
-    } catch (error) {
-        // This can happen if the session cookie is invalid or expired.
-        // Or if the Admin SDK is not configured.
-        console.error("Error verifying admin status:", error);
-        return false;
-    }
-}
-
 
 export async function getChords(input: GenerateChordsInput, forceNew: boolean = false) {
   try {
     if (forceNew) {
-        const isAdmin = await getIsAdmin();
-        if (!isAdmin) {
-            return { success: false, error: 'Unauthorized: Only admins can force-regenerate chords.' };
+        try {
+            const adminApp = getAdminApp();
+            const sessionCookie = cookies().get('session')?.value;
+            if (!sessionCookie) {
+                 return { success: false, error: 'Unauthorized: Missing session cookie.' };
+            }
+
+            const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
+            if (decodedClaims.email !== 'zhungmartin@gmail.com') {
+                 return { success: false, error: 'Unauthorized: Only admins can force-regenerate chords.' };
+            }
+        } catch (error) {
+            console.error("Admin check failed:", error);
+            return { success: false, error: 'Unauthorized: Could not verify admin status.' };
         }
     }
 
@@ -79,7 +74,7 @@ export async function searchSongs(query: string, arrangementStyle: string) {
         
         const resultsWithCacheStatus = await Promise.all(
             spotifyTracks.map(async (track) => {
-                const cacheKey = `${track.uri}-${arrangementStyle}`;
+                const cacheKey = `${track.uri}${arrangementStyle ? `-${arrangementStyle}` : ''}`;
                 const isGenerated = await checkChordCacheExists(cacheKey);
                 return {
                     ...track,
@@ -118,7 +113,7 @@ export async function getInitialSongs(arrangementStyle: string) {
   try {
     const recentSongs = await getRecentChords(50);
     
-    const styleMatchingSongs = recentSongs.filter(song => song.arrangementStyle === arrangementStyle);
+    const styleMatchingSongs = recentSongs.filter(song => song.arrangementStyle === (arrangementStyle || 'Standard'));
 
     const uniqueSongUris = [...new Set(styleMatchingSongs.map(s => s.songUri))].slice(0, 10);
     
@@ -151,11 +146,17 @@ export async function getInitialSongs(arrangementStyle: string) {
 
 export async function deleteChords(songUri: string, arrangementStyle: string) {
   try {
-    const isAdmin = await getIsAdmin();
-    if (!isAdmin) {
+    const adminApp = getAdminApp();
+    const sessionCookie = cookies().get('session')?.value;
+    if (!sessionCookie) {
         return { success: false, error: 'Unauthorized' };
     }
-    const cacheKey = `${songUri}-${arrangementStyle}`;
+    const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
+    if (decodedClaims.email !== 'zhungmartin@gmail.com') {
+        return { success: false, error: 'Unauthorized' };
+    }
+
+    const cacheKey = `${songUri}${arrangementStyle ? `-${arrangementStyle}` : ''}`;
     await deleteChordsFromDb(cacheKey);
     return { success: true };
   } catch (error) {
