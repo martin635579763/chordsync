@@ -38,15 +38,7 @@ if (!getApps().length) {
   clientApp = getApp();
 }
 
-function getDb(): Firestore {
-    const adminApp = getAdminApp();
-    if (adminApp) {
-        // Use admin firestore if available
-        return admin.firestore();
-    }
-    // Fallback to client firestore
-    return getClientFirestore(clientApp);
-}
+const clientDb = getClientFirestore(clientApp);
 
 
 const fretboardCacheCollection = 'fretboardCache';
@@ -60,10 +52,9 @@ function sanitizeDocId(id: string): string {
 }
 
 export async function getCachedFretboard(chord: string): Promise<GenerateFretboardOutput | null> {
-  const db = getDb();
   const docId = sanitizeDocId(chord);
   try {
-    const docRef = doc(db, fretboardCacheCollection, docId);
+    const docRef = doc(clientDb, fretboardCacheCollection, docId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -80,10 +71,10 @@ export async function getCachedFretboard(chord: string): Promise<GenerateFretboa
 }
 
 export async function setCachedFretboard(chord: string, data: GenerateFretboardOutput): Promise<void> {
-  const db = getDb();
   const docId = sanitizeDocId(chord);
   try {
-    const docRef = doc(db, fretboardCacheCollection, docId);
+    const adminDb = getAdminApp() ? admin.firestore(getAdminApp()!) : clientDb;
+    const docRef = doc(adminDb, fretboardCacheCollection, docId);
     await setDoc(docRef, data);
     console.log(`[Firestore] Successfully cached fretboard for chord: ${chord} (docId: ${docId})`);
   } catch (error) {
@@ -92,10 +83,9 @@ export async function setCachedFretboard(chord: string, data: GenerateFretboardO
 }
 
 export async function getCachedChords(cacheKey: string): Promise<GenerateChordsOutput | null> {
-  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
-    const docRef = doc(db, chordCacheCollection, docId);
+    const docRef = doc(clientDb, chordCacheCollection, docId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -118,10 +108,9 @@ export async function getCachedChords(cacheKey: string): Promise<GenerateChordsO
 }
 
 export async function checkChordCacheExists(cacheKey: string): Promise<boolean> {
-  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
-    const docRef = doc(db, chordCacheCollection, docId);
+    const docRef = doc(clientDb, chordCacheCollection, docId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists();
   } catch (error) {
@@ -132,10 +121,15 @@ export async function checkChordCacheExists(cacheKey: string): Promise<boolean> 
 
 
 export async function setCachedChords(cacheKey: string, data: GenerateChordsOutput, songUri: string, arrangementStyle: string): Promise<void> {
-  const db = getDb();
+  const adminApp = getAdminApp();
+  if (!adminApp) {
+      console.error("[Firestore] Admin App not initialized. Cannot set cached chords with admin privileges.");
+      return;
+  }
+  const adminDb = admin.firestore(adminApp);
   const docId = sanitizeDocId(cacheKey);
   try {
-    const docRef = doc(db, chordCacheCollection, docId);
+    const docRef = doc(adminDb, chordCacheCollection, docId);
     
     const trackDetails = await getTrackDetails(songUri);
     const searchTerms = trackDetails ? [trackDetails.name.toLowerCase(), ...trackDetails.artists.map(a => a.toLowerCase())] : [];
@@ -148,10 +142,15 @@ export async function setCachedChords(cacheKey: string, data: GenerateChordsOutp
 }
 
 export async function deleteCachedChords(cacheKey: string): Promise<void> {
-    const db = getDb();
+    const adminApp = getAdminApp();
+    if (!adminApp) {
+        console.error("[Firestore] Admin App not initialized. Cannot delete cached chords.");
+        throw new Error("Admin features not configured.");
+    }
+    const adminDb = admin.firestore(adminApp);
     const docId = sanitizeDocId(cacheKey);
     try {
-        const docRef = doc(db, chordCacheCollection, docId);
+        const docRef = doc(adminDb, chordCacheCollection, docId);
         await deleteDoc(docRef);
         console.log(`[Firestore] Successfully deleted cached chords for: ${cacheKey} (docId: ${docId})`);
     } catch (error) {
@@ -162,10 +161,9 @@ export async function deleteCachedChords(cacheKey: string): Promise<void> {
 
 
 export async function getRecentChords(count: number): Promise<{ songUri: string, arrangementStyle: string }[]> {
-    const db = getDb();
     try {
         const q = query(
-            collection(db, chordCacheCollection), 
+            collection(clientDb, chordCacheCollection), 
             orderBy("timestamp", "desc"), 
             limit(count)
         );
@@ -184,10 +182,9 @@ export async function getRecentChords(count: number): Promise<{ songUri: string,
 }
 
 export async function getCachedAccompanimentText(cacheKey: string): Promise<GenerateAccompanimentTextOutput | null> {
-  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
-    const docRef = doc(db, accompanimentCacheCollection, docId);
+    const docRef = doc(clientDb, accompanimentCacheCollection, docId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data() as GenerateAccompanimentTextOutput;
@@ -200,10 +197,10 @@ export async function getCachedAccompanimentText(cacheKey: string): Promise<Gene
 }
 
 export async function setCachedAccompanimentText(cacheKey: string, data: GenerateAccompanimentTextOutput): Promise<void> {
-  const db = getDb();
   const docId = sanitizeDocId(cacheKey);
   try {
-    const docRef = doc(db, accompanimentCacheCollection, docId);
+    const adminDb = getAdminApp() ? admin.firestore(getAdminApp()!) : clientDb;
+    const docRef = doc(adminDb, accompanimentCacheCollection, docId);
     await setDoc(docRef, data);
   } catch (error) {
     console.error(`[Firestore] Error setting cached accompaniment text for ${docId}:`, error);
@@ -213,9 +210,8 @@ export async function setCachedAccompanimentText(cacheKey: string, data: Generat
 
 // Check if Firestore is connected by trying to read a document.
 export async function checkFirestoreConnection() {
-    const db = getDb();
     try {
-        const q = query(collection(db, fretboardCacheCollection), limit(1));
+        const q = query(collection(clientDb, fretboardCacheCollection), limit(1));
         await getDocs(q);
         console.log('[Firestore] Connection successful.');
         return true;
@@ -226,10 +222,9 @@ export async function checkFirestoreConnection() {
 }
 
 export async function searchCachedChords(searchQuery: string) {
-    const db = getDb();
     try {
         const q = query(
-            collection(db, chordCacheCollection),
+            collection(clientDb, chordCacheCollection),
             where('searchTerms', 'array-contains', searchQuery.toLowerCase())
         );
 
@@ -262,3 +257,5 @@ export async function searchCachedChords(searchQuery: string) {
         return [];
     }
 }
+
+    
