@@ -16,21 +16,33 @@ const googleProvider = new GoogleAuthProvider();
 
 
 export function onAuthStateChanged(callback: (user: User | null) => void) {
+  let initialLoad = true;
+  let wasUser: boolean | null = null;
+  
   return onIdTokenChanged(auth, async (user) => {
-    const wasUser = await auth.getRedirectResult();
-    if (user) {
-      const idToken = await user.getIdToken();
-      await createSession(idToken);
-       if (wasUser) {
-        window.location.reload();
-      }
-    } else {
-      await signOutServer();
-      if (wasUser) {
-        window.location.reload();
-      }
+    const isUser = !!user;
+
+    // On initial load, just set the state and call the callback
+    if (initialLoad) {
+      wasUser = isUser;
+      initialLoad = false;
+      callback(user);
+      return;
     }
-    callback(user);
+
+    // If the auth state has changed, handle session and reload
+    if (isUser !== wasUser) {
+      if (user) {
+        const idToken = await user.getIdToken();
+        await createSession(idToken);
+      } else {
+        await signOutServer();
+      }
+      // Reload the page to ensure all state is in sync with the new session
+      window.location.reload();
+    } else {
+       callback(user);
+    }
   });
 }
 
@@ -47,7 +59,7 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
-    window.location.reload();
+    // onAuthStateChanged will handle the reload
     return { success: true };
   } catch (error: any) {
     console.error("Sign-Out Error:", error);

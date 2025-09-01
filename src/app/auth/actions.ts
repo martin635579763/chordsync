@@ -8,6 +8,11 @@ import { getAdminApp } from './firebase-admin';
 export async function createSession(idToken: string) {
     try {
         const adminApp = getAdminApp();
+        if (!adminApp) {
+            // This case should be handled by the calling function, but we log it here.
+            console.error("Firebase Admin App not initialized. Cannot create session.");
+            return { success: false, error: 'Server is not configured for authentication.' };
+        }
         const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
         const sessionCookie = await getAuth(adminApp).createSessionCookie(idToken, { expiresIn });
 
