@@ -33,8 +33,5 @@ export function getAdminApp() {
     if (!adminApp) {
         initializeAdminApp();
     }
-    if (!adminApp) {
-        throw new Error("Firebase Admin SDK is not initialized. Ensure FIREBASE_SERVICE_ACCOUNT is set correctly.");
-    }
     return adminApp;
 }

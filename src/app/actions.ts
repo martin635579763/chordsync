@@ -28,6 +28,9 @@ export async function getChords(input: GenerateChordsInput, forceNew: boolean = 
     if (forceNew) {
         try {
             const adminApp = getAdminApp();
+            if (!adminApp) {
+                return { success: false, error: 'Unauthorized: Admin features are not configured on the server.' };
+            }
             const sessionCookie = cookies().get('session')?.value;
             if (!sessionCookie) {
                  return { success: false, error: 'Unauthorized: Missing session cookie.' };
@@ -147,10 +150,15 @@ export async function getInitialSongs(arrangementStyle: string) {
 export async function deleteChords(songUri: string, arrangementStyle: string) {
   try {
     const adminApp = getAdminApp();
+    if (!adminApp) {
+        return { success: false, error: 'Unauthorized: Admin features are not configured on the server.' };
+    }
+
     const sessionCookie = cookies().get('session')?.value;
     if (!sessionCookie) {
-        return { success: false, error: 'Unauthorized' };
+        return { success: false, error: 'Unauthorized: Missing session cookie.' };
     }
+
     const decodedClaims = await getAuth(adminApp).verifySessionCookie(sessionCookie, true);
     if (decodedClaims.email !== 'zhungmartin@gmail.com') {
         return { success: false, error: 'Unauthorized' };
